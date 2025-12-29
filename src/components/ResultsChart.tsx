@@ -222,7 +222,6 @@ export function ResultsChart({ stats }: ResultsChartProps) {
     );
   }
 
-  const interpretation = StatsCalculator.interpretResults(stats);
   const skillAssessment = StatsCalculator.assessSkillLevel(stats);
 
   return (

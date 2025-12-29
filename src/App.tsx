@@ -28,7 +28,7 @@ function App() {
   const [currentBeat, setCurrentBeat] = useState(-1);
   const [countIn, setCountIn] = useState<{ current: number; total: number } | null>(null);
   const [lastInput, setLastInput] = useState<TimingOffset | null>(null);
-  const [result, setResult] = useState<SessionResult | null>(null);
+  const [, setResult] = useState<SessionResult | null>(null);
   const [stats, setStats] = useState<SessionStats | null>(null);
   const [error, setError] = useState<string | null>(null);
 

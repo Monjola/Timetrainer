@@ -70,7 +70,7 @@ export class SessionManager {
       onCountIn: (current, total) => {
         this.callbacks?.onCountIn(current, total);
       },
-      onBeat: (beatIndex, scheduledTime, expectedInputTime) => {
+      onBeat: (beatIndex, _scheduledTime, expectedInputTime) => {
         // First beat after count-in - transition to running state
         if (this.isInCountIn) {
           this.isInCountIn = false;
