@@ -70,7 +70,7 @@ const DEFAULT_TRACKS: DrumSoundType[] = [
   'kick',
 ];
 
-export function PatternEditor({ pattern, onChange, disabled, bpm, isPreviewing, onPreviewToggle }: PatternEditorProps) {
+export function PatternEditor({ pattern, onChange, disabled, bpm: _bpm, isPreviewing, onPreviewToggle }: PatternEditorProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [activeTracks, setActiveTracks] = useState<DrumSoundType[]>(DEFAULT_TRACKS);
   const [showTrackPicker, setShowTrackPicker] = useState(false);

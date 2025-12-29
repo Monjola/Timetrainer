@@ -42,8 +42,6 @@ export class MetronomeEngine {
   private readonly SCHEDULE_AHEAD_TIME = 0.1; // Schedule 100ms ahead
   private readonly SCHEDULER_INTERVAL = 25; // Check every 25ms
 
-  // Click sound parameters (for count-in and fallback)
-  private readonly CLICK_DURATION = 0.05; // 50ms
   private soundType: MetronomeSoundType = 'click';
 
   async initialize(): Promise<AudioContext> {
