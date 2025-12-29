@@ -2,8 +2,9 @@
  * ConfigPanel - Settings for BPM, duration, and input method
  */
 
-import type { InputMethod, SessionConfig, MetronomeSoundType, TapSoundType } from '../types';
+import type { InputMethod, SessionConfig, TapSoundType, BeatPattern } from '../types';
 import { InputHandler } from '../core/InputHandler';
+import { PatternEditor, ALL_SOUNDS } from './PatternEditor';
 
 interface ConfigPanelProps {
   config: SessionConfig;
@@ -14,6 +15,8 @@ interface ConfigPanelProps {
   audioLevel: number;
   isMicTesting: boolean;
   onMicTestToggle: () => void;
+  isPreviewing: boolean;
+  onPreviewToggle: () => void;
 }
 
 export function ConfigPanel({ 
@@ -24,7 +27,9 @@ export function ConfigPanel({
   onMicSensitivityChange,
   audioLevel,
   isMicTesting,
-  onMicTestToggle
+  onMicTestToggle,
+  isPreviewing,
+  onPreviewToggle
 }: ConfigPanelProps) {
   const handleBpmChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const bpm = Math.max(20, Math.min(300, parseInt(e.target.value) || 60));
@@ -32,7 +37,7 @@ export function ConfigPanel({
   };
 
   const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const beats = Math.max(4, Math.min(500, parseInt(e.target.value) || 16));
+    const beats = Math.max(30, Math.min(500, parseInt(e.target.value) || 75));
     onChange({ ...config, durationBeats: beats });
   };
 
@@ -40,31 +45,22 @@ export function ConfigPanel({
     onChange({ ...config, inputMethod: method });
   };
 
-  const handleMetronomeSoundChange = (sound: MetronomeSoundType) => {
-    onChange({ ...config, metronomeSound: sound });
-  };
-
   const handleTapSoundChange = (sound: TapSoundType) => {
     onChange({ ...config, tapSound: sound });
+  };
+
+  const handlePatternChange = (pattern: BeatPattern) => {
+    onChange({ ...config, beatPattern: pattern });
   };
 
   const getDurationInSeconds = () => {
     return ((config.durationBeats / config.bpm) * 60).toFixed(1);
   };
 
-  const metronomeSounds: { type: MetronomeSoundType; label: string; emoji: string }[] = [
-    { type: 'click', label: 'Click', emoji: '🔔' },
-    { type: 'beep', label: 'Beep', emoji: '📢' },
-    { type: 'wood', label: 'Wood', emoji: '🪵' },
-    { type: 'hihat', label: 'Hi-hat', emoji: '🥁' },
-  ];
-
-  const tapSounds: { type: TapSoundType; label: string; emoji: string }[] = [
-    { type: 'click', label: 'Click', emoji: '🔔' },
-    { type: 'beep', label: 'Beep', emoji: '📢' },
-    { type: 'drum', label: 'Drum', emoji: '🥁' },
-    { type: 'wood', label: 'Wood', emoji: '🪵' },
-  ];
+  // Get tap sound info
+  const getCurrentTapSound = () => {
+    return ALL_SOUNDS.find(s => s.sound === config.tapSound);
+  };
 
   return (
     <div className="config-panel">
@@ -98,15 +94,15 @@ export function ConfigPanel({
           <input
             id="duration"
             type="range"
-            min="4"
-            max="100"
+            min="30"
+            max="200"
             value={config.durationBeats}
             onChange={handleDurationChange}
             disabled={disabled}
           />
           <input
             type="number"
-            min="4"
+            min="30"
             max="500"
             value={config.durationBeats}
             onChange={handleDurationChange}
@@ -151,45 +147,65 @@ export function ConfigPanel({
         </div>
       </div>
 
-      <div className="config-section sound-settings">
-        <div className="sound-row">
-          <label>Metronome Sound</label>
-          <div className="sound-buttons">
-            {metronomeSounds.map(({ type, label, emoji }) => (
-              <button
-                key={type}
-                className={`sound-button ${config.metronomeSound === type ? 'active' : ''}`}
-                onClick={() => handleMetronomeSoundChange(type)}
-                disabled={disabled}
-                title={label}
-              >
-                <span className="sound-emoji">{emoji}</span>
-                <span className="sound-label">{label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+      {/* Pattern Editor */}
+      <div className="config-section">
+        <label>Beat Pattern</label>
+        <PatternEditor
+          pattern={config.beatPattern}
+          onChange={handlePatternChange}
+          disabled={disabled}
+          bpm={config.bpm}
+          isPreviewing={isPreviewing}
+          onPreviewToggle={onPreviewToggle}
+        />
+      </div>
 
-        {config.inputMethod !== 'audio' && (
+      {/* Tap Sound (only for keyboard/MIDI) */}
+      {config.inputMethod !== 'audio' && (
+        <div className="config-section sound-settings">
           <div className="sound-row">
             <label>Tap Sound</label>
-            <div className="sound-buttons">
-              {tapSounds.map(({ type, label, emoji }) => (
-                <button
-                  key={type}
-                  className={`sound-button ${config.tapSound === type ? 'active' : ''}`}
-                  onClick={() => handleTapSoundChange(type)}
-                  disabled={disabled}
-                  title={label}
-                >
-                  <span className="sound-emoji">{emoji}</span>
-                  <span className="sound-label">{label}</span>
-                </button>
-              ))}
+            <div className="tap-sound-selector">
+              <div className="current-tap-sound">
+                {getCurrentTapSound() && (
+                  <>
+                    <span className="sound-emoji">{getCurrentTapSound()?.emoji}</span>
+                    <span className="sound-name">{getCurrentTapSound()?.label}</span>
+                  </>
+                )}
+              </div>
+              <select
+                className="tap-sound-select"
+                value={config.tapSound}
+                onChange={(e) => handleTapSoundChange(e.target.value as TapSoundType)}
+                disabled={disabled}
+              >
+                <optgroup label="Drums">
+                  {ALL_SOUNDS.filter(s => s.category === 'drums').map(sound => (
+                    <option key={sound.sound} value={sound.sound}>
+                      {sound.emoji} {sound.label}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Metronome">
+                  {ALL_SOUNDS.filter(s => s.category === 'metronome').map(sound => (
+                    <option key={sound.sound} value={sound.sound}>
+                      {sound.emoji} {sound.label}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Bass">
+                  {ALL_SOUNDS.filter(s => s.category === 'bass').map(sound => (
+                    <option key={sound.sound} value={sound.sound}>
+                      {sound.emoji} {sound.label}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {config.inputMethod === 'audio' && (
         <div className="config-section mic-settings">

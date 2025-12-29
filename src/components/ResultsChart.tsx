@@ -226,7 +226,6 @@ export function ResultsChart({ stats, bpm }: ResultsChartProps) {
   }
 
   const assessment = StatsCalculator.assessSkillLevel(stats, bpm);
-  const beatDurationMs = (60 / bpm) * 1000;
 
   return (
     <div className="results-chart">
@@ -268,9 +267,16 @@ export function ResultsChart({ stats, bpm }: ResultsChartProps) {
           <span className="stat-label">Std Dev (σ)</span>
           <span className="stat-value">{stats.standardDeviation.toFixed(1)}ms</span>
         </div>
+        <div className="stat-item">
+          <span className="stat-label">Range</span>
+          <span className="stat-value">{(stats.max - stats.min).toFixed(0)}ms</span>
+          <span className="stat-detail">
+            ({(-stats.max).toFixed(0)} to {(-stats.min).toFixed(0)})
+          </span>
+        </div>
         <div className="stat-item highlight">
-          <span className="stat-label">σ of Beat</span>
-          <span className="stat-value">{assessment.consistencyPercent.toFixed(1)}%</span>
+          <span className="stat-label">Precision</span>
+          <span className="stat-value">{assessment.consistencyTitle}</span>
         </div>
         <div className="stat-item">
           <span className="stat-label">Samples</span>
@@ -278,76 +284,98 @@ export function ResultsChart({ stats, bpm }: ResultsChartProps) {
         </div>
       </div>
 
-      {/* Offset interpretation */}
-      <div className="assessment-section">
+      {/* Precision Levels - combined with consistency description */}
+      <div className="consistency-scale">
+        <div className="scale-header">
+          <h4>Precision Levels</h4>
+          <div className="info-button" title="">
+            <span className="info-icon">ℹ️</span>
+            <div className="info-tooltip">
+              <h5>How Precision is Calculated</h5>
+              <p>
+                This rating system comes from <strong>manufacturing and quality engineering</strong>, 
+                where it measures how consistently a machine can produce parts within specification. 
+                We've adapted it for musical timing.
+              </p>
+              <h6>What is Cp?</h6>
+              <p>
+                <strong>Cp</strong> (Process Capability Index) measures how well a process fits 
+                within its tolerance limits:
+              </p>
+              <p className="formula">Cp = Tolerance ÷ (3 × σ)</p>
+              <p>
+                We use a <strong>±25ms tolerance</strong> — the window where timing "feels" right. 
+                Cp measures how consistently you stay within this window. A higher Cp means tighter, 
+                more reliable timing.
+              </p>
+              <h6>Precision Levels</h6>
+              <p>
+                These levels correspond to industry-standard Cp benchmarks. <strong>Scattered</strong> (σ &gt; 25ms, 
+                Cp &lt; 0.33) is "not capable". <strong>Loose</strong> (σ 12-25ms, Cp 0.33-0.67) is "poor". 
+                <strong>Steady</strong> (σ 8-12ms, Cp 0.67-1.0) is "marginal". <strong>Locked In</strong> (σ 6-8ms, 
+                Cp 1.0-1.33) is "capable" — the minimum standard in manufacturing. <strong>Diamond</strong> (σ 4-6ms, 
+                Cp 1.33-2.0) is "excellent" — required for critical parts. <strong>Atomic Clock</strong> (σ &lt; 4ms, 
+                Cp &gt; 2.0) is "world class".
+              </p>
+              <p className="your-stats">
+                Your σ: <strong>{stats.standardDeviation.toFixed(1)}ms</strong> → 
+                Cp: <strong>{assessment.cp.toFixed(2)}</strong>
+              </p>
+            </div>
+          </div>
+        </div>
+        <p className="scale-description">{assessment.consistencyDescription}</p>
+        <div className="scale-bar">
+          <div className="scale-segments">
+            <div className={`scale-segment scattered ${assessment.consistencyLevel === 'scattered' ? 'current' : ''}`}>
+              <span className="segment-label">🎲 Scattered</span>
+              <span className="segment-value">σ &gt; 25ms</span>
+            </div>
+            <div className={`scale-segment loose ${assessment.consistencyLevel === 'loose' ? 'current' : ''}`}>
+              <span className="segment-label">🌊 Loose</span>
+              <span className="segment-value">σ 12-25ms</span>
+            </div>
+            <div className={`scale-segment steady ${assessment.consistencyLevel === 'steady' ? 'current' : ''}`}>
+              <span className="segment-label">🎯 Steady</span>
+              <span className="segment-value">σ 8-12ms</span>
+            </div>
+            <div className={`scale-segment locked_in ${assessment.consistencyLevel === 'locked_in' ? 'current' : ''}`}>
+              <span className="segment-label">🔒 Locked In</span>
+              <span className="segment-value">σ 6-8ms</span>
+            </div>
+            <div className={`scale-segment diamond ${assessment.consistencyLevel === 'diamond' ? 'current' : ''}`}>
+              <span className="segment-label">💎 Diamond</span>
+              <span className="segment-value">σ 4-6ms</span>
+            </div>
+            <div className={`scale-segment atomic_clock ${assessment.consistencyLevel === 'atomic_clock' ? 'current' : ''}`}>
+              <span className="segment-label">⚛️ Atomic</span>
+              <span className="segment-value">σ &lt; 4ms</span>
+            </div>
+          </div>
+          <div 
+            className="scale-marker" 
+            style={{ left: `${Math.min(100, Math.max(0, (assessment.cp / 2.5) * 100))}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Timing Feel - combined with offset ruler */}
+      <div className="offset-scale">
         <div className="assessment-header">
           <span className="assessment-label">Timing Feel</span>
           <span className={`assessment-value offset-${assessment.offsetFeel}`}>
             {assessment.offsetTitle}
           </span>
         </div>
-        <p className="assessment-description">{assessment.offsetDescription}</p>
-      </div>
-
-      {/* Consistency interpretation */}
-      <div className="assessment-section">
-        <div className="assessment-header">
-          <span className="assessment-label">Consistency</span>
-          <span className={`assessment-value consistency-${assessment.consistencyLevel}`}>
-            {assessment.consistencyTitle}
-          </span>
-        </div>
-        <p className="assessment-description">{assessment.consistencyDescription}</p>
-      </div>
-
-      {/* Consistency scale */}
-      <div className="consistency-scale">
-        <h4>Consistency Levels <span className="scale-note">(σ as % of beat at {bpm} BPM = {beatDurationMs.toFixed(0)}ms)</span></h4>
-        <div className="scale-bar">
-          <div className="scale-segments">
-            <div className={`scale-segment metronome ${assessment.consistencyLevel === 'metronome' ? 'current' : ''}`}>
-              <span className="segment-label">🤖 Metronome</span>
-              <span className="segment-value">&lt;2.5%</span>
-            </div>
-            <div className={`scale-segment session_pro ${assessment.consistencyLevel === 'session_pro' ? 'current' : ''}`}>
-              <span className="segment-label">🎯 Session Pro</span>
-              <span className="segment-value">&lt;3%</span>
-            </div>
-            <div className={`scale-segment musician ${assessment.consistencyLevel === 'musician' ? 'current' : ''}`}>
-              <span className="segment-label">🎸 Musician</span>
-              <span className="segment-value">&lt;4%</span>
-            </div>
-            <div className={`scale-segment intermediate ${assessment.consistencyLevel === 'intermediate' ? 'current' : ''}`}>
-              <span className="segment-label">📈 Intermediate</span>
-              <span className="segment-value">&lt;5%</span>
-            </div>
-            <div className={`scale-segment beginner ${assessment.consistencyLevel === 'beginner' ? 'current' : ''}`}>
-              <span className="segment-label">🌱 Beginner</span>
-              <span className="segment-value">&lt;6%</span>
-            </div>
-            <div className={`scale-segment inconsistent ${assessment.consistencyLevel === 'inconsistent' ? 'current' : ''}`}>
-              <span className="segment-label">🎲 Inconsistent</span>
-              <span className="segment-value">&gt;6%</span>
-            </div>
-          </div>
-          <div 
-            className="scale-marker" 
-            style={{ left: `${Math.min(100, (assessment.consistencyPercent / 8) * 100)}%` }}
-          />
-        </div>
-      </div>
-
-      {/* Offset scale reference - follows user's image: + = on top, - = behind */}
-      <div className="offset-scale">
-        <h4>Offset Reference</h4>
+        <p className="scale-description">{assessment.offsetDescription}</p>
         <div className="offset-ruler">
           <div className="ruler-labels">
             <span className="ruler-label extreme">Day Job</span>
             <span className="ruler-label">Nervous</span>
             <span className="ruler-label">Drive</span>
             <span className="ruler-label good">Snap</span>
-            <span className="ruler-label center">Pocket</span>
-            <span className="ruler-label good">Groove</span>
+            <span className="ruler-label center">Groove</span>
+            <span className="ruler-label good">Pocket</span>
             <span className="ruler-label">Dragging</span>
             <span className="ruler-label extreme">Get Sleep</span>
           </div>

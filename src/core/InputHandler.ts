@@ -9,7 +9,7 @@
  * All inputs are converted to AudioContext time for consistent comparison
  */
 
-import type { InputMethod } from '../types';
+import type { InputMethod, TapSoundType } from '../types';
 import { metronomeEngine } from './MetronomeEngine';
 
 export interface InputHandlerCallbacks {
@@ -42,7 +42,7 @@ export class InputHandler {
   // Tap sound settings
   private tapSoundEnabled: boolean = true;
   private sessionActive: boolean = false;
-  private tapSoundType: 'click' | 'beep' | 'drum' | 'wood' = 'wood';
+  private tapSoundType: TapSoundType = 'wood_high';
 
   setCallbacks(callbacks: InputHandlerCallbacks): void {
     this.callbacks = callbacks;
@@ -65,105 +65,20 @@ export class InputHandler {
     this.sessionActive = active;
   }
 
-  setTapSoundType(type: 'click' | 'beep' | 'drum' | 'wood'): void {
+  setTapSoundType(type: TapSoundType): void {
     this.tapSoundType = type;
   }
 
   /**
-   * Play a short tap/click sound for feedback
+   * Play a tap sound for feedback - delegates to MetronomeEngine
    */
   private playTapSound(): void {
     // Only play during active session
     if (!this.tapSoundEnabled || !this.sessionActive) return;
+    if (this.tapSoundType === 'none') return;
     
-    const audioContext = metronomeEngine.getAudioContext();
-    if (!audioContext) return;
-
-    const now = audioContext.currentTime;
-
-    switch (this.tapSoundType) {
-      case 'click':
-        this.playSoundClick(audioContext, now);
-        break;
-      case 'beep':
-        this.playSoundBeep(audioContext, now);
-        break;
-      case 'drum':
-        this.playSoundDrum(audioContext, now);
-        break;
-      case 'wood':
-      default:
-        this.playSoundWood(audioContext, now);
-        break;
-    }
-  }
-
-  private playSoundClick(ctx: AudioContext, time: number): void {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    
-    osc.frequency.value = 1500;
-    osc.type = 'square';
-    
-    gain.gain.setValueAtTime(0.2, time);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.03);
-    
-    osc.start(time);
-    osc.stop(time + 0.03);
-  }
-
-  private playSoundBeep(ctx: AudioContext, time: number): void {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    
-    osc.frequency.value = 880;
-    osc.type = 'sine';
-    
-    gain.gain.setValueAtTime(0, time);
-    gain.gain.linearRampToValueAtTime(0.25, time + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
-    
-    osc.start(time);
-    osc.stop(time + 0.08);
-  }
-
-  private playSoundDrum(ctx: AudioContext, time: number): void {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    
-    // Pitch drop for drum-like sound
-    osc.frequency.setValueAtTime(150, time);
-    osc.frequency.exponentialRampToValueAtTime(50, time + 0.1);
-    osc.type = 'sine';
-    
-    gain.gain.setValueAtTime(0.4, time);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
-    
-    osc.start(time);
-    osc.stop(time + 0.15);
-  }
-
-  private playSoundWood(ctx: AudioContext, time: number): void {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    
-    osc.frequency.value = 800;
-    osc.type = 'triangle';
-    
-    gain.gain.setValueAtTime(0, time);
-    gain.gain.linearRampToValueAtTime(0.3, time + 0.005);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
-    
-    osc.start(time);
-    osc.stop(time + 0.06);
+    // Use the metronome engine's playTapSound method
+    metronomeEngine.playTapSound(this.tapSoundType);
   }
 
   async startListening(method: InputMethod): Promise<void> {

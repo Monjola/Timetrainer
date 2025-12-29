@@ -67,6 +67,7 @@ export class SessionManager {
       bpm: config.bpm,
       totalBeats: config.durationBeats,
       countInBeats: this.COUNT_IN_BEATS,
+      beatPattern: config.beatPattern,
       onCountIn: (current, total) => {
         this.callbacks?.onCountIn(current, total);
       },
@@ -86,6 +87,10 @@ export class SessionManager {
   }
 
   stop(): void {
+    // Set state first to prevent the stop button click from being registered as input
+    // (handleInput checks this.state !== 'running')
+    this.state = 'finished';
+    
     metronomeEngine.stop();
     inputHandler.stopListening();
     this.complete();

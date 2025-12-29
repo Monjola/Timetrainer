@@ -11,6 +11,7 @@ import { sessionManager } from './core/SessionManager';
 import { inputHandler } from './core/InputHandler';
 import { metronomeEngine } from './core/MetronomeEngine';
 import { StatsCalculator } from './core/StatsCalculator';
+import { createDefaultPattern } from './core/PatternUtils';
 import { ConfigPanel } from './components/ConfigPanel';
 import { SessionControls } from './components/SessionControls';
 import { InputIndicator } from './components/InputIndicator';
@@ -21,10 +22,11 @@ function App() {
   // Session configuration
   const [config, setConfig] = useState<SessionConfig>({
     bpm: 100,
-    durationBeats: 32,
+    durationBeats: 75,
     inputMethod: 'keyboard',
     metronomeSound: 'click',
-    tapSound: 'wood'
+    tapSound: 'wood_high',
+    beatPattern: createDefaultPattern('4/4')
   });
 
   // Session state
@@ -40,6 +42,7 @@ function App() {
   const [micSensitivity, setMicSensitivity] = useState(0.7); // Default to fairly sensitive
   const [audioLevel, setAudioLevel] = useState(0);
   const [isMicTesting, setIsMicTesting] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
 
   // Update mic sensitivity when it changes
   useEffect(() => {
@@ -109,6 +112,11 @@ function App() {
       inputHandler.stopMicPreview();
       setIsMicTesting(false);
     }
+    // Stop pattern preview if running
+    if (isPreviewing) {
+      metronomeEngine.stopPreview();
+      setIsPreviewing(false);
+    }
     
     setError(null);
     setResult(null);
@@ -120,7 +128,7 @@ function App() {
       setError(err instanceof Error ? err.message : 'Failed to start session');
       setSessionState('idle');
     }
-  }, [config, isMicTesting]);
+  }, [config, isMicTesting, isPreviewing]);
 
   // Handle stop
   const handleStop = useCallback(() => {
@@ -150,6 +158,22 @@ function App() {
     }
   }, [isMicTesting]);
 
+  // Handle pattern preview toggle
+  const handlePreviewToggle = useCallback(async () => {
+    if (isPreviewing) {
+      metronomeEngine.stopPreview();
+      setIsPreviewing(false);
+    } else {
+      try {
+        await metronomeEngine.initialize();
+        metronomeEngine.startPreview(config.beatPattern, config.bpm);
+        setIsPreviewing(true);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to start preview');
+      }
+    }
+  }, [isPreviewing, config.beatPattern, config.bpm]);
+
   return (
     <div className="app">
       <header className="app-header">
@@ -177,6 +201,8 @@ function App() {
                 audioLevel={audioLevel}
                 isMicTesting={isMicTesting}
                 onMicTestToggle={handleMicTestToggle}
+                isPreviewing={isPreviewing}
+                onPreviewToggle={handlePreviewToggle}
               />
             </section>
 

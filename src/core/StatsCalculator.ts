@@ -7,6 +7,9 @@
 import { mean, standardDeviation, min, max } from 'simple-statistics';
 import type { TimingOffset, SessionStats, HistogramBin, ConsistencyLevel, OffsetFeel, SkillAssessment } from '../types';
 
+// Tolerance for Cpk calculation: ±25ms from the user's mean
+const TOLERANCE_MS = 25;
+
 export class StatsCalculator {
   // Outlier threshold in standard deviations
   private static readonly OUTLIER_THRESHOLD_SIGMA = 4;
@@ -206,31 +209,26 @@ export class StatsCalculator {
   }
 
   /**
-   * Assess skill level based on timing statistics
+   * Assess skill level based on timing statistics using Six Sigma Cp methodology
    * 
-   * Consistency thresholds are based on standard deviation as a percentage of beat duration:
-   * - Below 2.5%: Metronome-level
-   * - 3%: Session pro
-   * - 4%: Musician
-   * - Below 5%: Intermediate
-   * - Below 6%: Beginner
-   * - Above 6%: Inconsistent
+   * Cp = Tolerance / (3 * σ) where Tolerance = 25ms
    * 
-   * Offset (timing feel) based on where you sit relative to the beat:
-   * - ±5ms: In the pocket / Groove
-   * - ±10ms: Snap / Drive
-   * - ±20-30ms: Dragging / Nervous
-   * - Beyond ±40ms: Day job territory
+   * Cp Level Rankings (based on industry standards):
+   * - < 0.33: Scattered (σ > 25ms)
+   * - 0.33-0.67: Loose (σ 12-25ms)
+   * - 0.67-1.0: Steady (σ 8-12ms)
+   * - 1.0-1.33: Locked In (σ 6-8ms)
+   * - 1.33-2.0: Diamond (σ 4-6ms)
+   * - > 2.0: Atomic Clock (σ < 4ms)
    */
-  static assessSkillLevel(stats: SessionStats, bpm: number): SkillAssessment {
-    const beatDurationMs = (60 / bpm) * 1000;
-    
+  static assessSkillLevel(stats: SessionStats, _bpm: number): SkillAssessment {
     if (stats.count === 0) {
       return {
-        consistencyLevel: 'inconsistent',
+        consistencyLevel: 'scattered',
         consistencyTitle: 'No Data',
         consistencyEmoji: '❓',
-        consistencyPercent: 0,
+        sigmaLevel: 0,
+        cp: 0,
         consistencyDescription: 'Complete a session to see your assessment.',
         offsetFeel: 'in_the_pocket',
         offsetTitle: 'N/A',
@@ -241,57 +239,58 @@ export class StatsCalculator {
 
     const { standardDeviation: sigma, mean: offset } = stats;
     
-    // Calculate σ as percentage of beat duration
-    const sigmaPercent = (sigma / beatDurationMs) * 100;
+    // Calculate Cp (Process Capability Index)
+    // Cp = Tolerance / (3 * σ) = 25 / (3 * σ)
+    const cp = sigma > 0 ? TOLERANCE_MS / (3 * sigma) : 10; // Cap at 10 if σ is 0
+    
+    // Sigma level for display purposes (how many σ fit in tolerance)
+    const sigmaLevel = sigma > 0 ? TOLERANCE_MS / sigma : 10;
 
-    // Determine consistency level based on percentage thresholds
+    // Determine consistency level based on σ thresholds
     let consistencyLevel: ConsistencyLevel;
     let consistencyTitle: string;
     let consistencyEmoji: string;
     let consistencyDescription: string;
 
-    if (sigmaPercent < 2.5) {
-      consistencyLevel = 'metronome';
-      consistencyTitle = 'Metronome';
-      consistencyEmoji = '🤖';
-      consistencyDescription = 'Inhuman precision. Are you a drum machine?';
-    } else if (sigmaPercent < 3) {
-      consistencyLevel = 'session_pro';
-      consistencyTitle = 'Session Pro';
-      consistencyEmoji = '🎯';
-      consistencyDescription = 'Studio-grade consistency. Ready for any session.';
-    } else if (sigmaPercent < 4) {
-      consistencyLevel = 'musician';
-      consistencyTitle = 'Musician';
-      consistencyEmoji = '🎸';
-      consistencyDescription = 'Tight timing that holds down any groove.';
-    } else if (sigmaPercent < 5) {
-      consistencyLevel = 'intermediate';
-      consistencyTitle = 'Intermediate';
-      consistencyEmoji = '📈';
-      consistencyDescription = 'Solid foundation. Keep refining your pocket.';
-    } else if (sigmaPercent < 6) {
-      consistencyLevel = 'beginner';
-      consistencyTitle = 'Beginner';
-      consistencyEmoji = '🌱';
-      consistencyDescription = 'Building consistency. Focus on feeling the subdivision.';
-    } else {
-      consistencyLevel = 'inconsistent';
-      consistencyTitle = 'Inconsistent';
+    if (sigma > 25) {
+      // Cp < 0.33 - Not Capable
+      consistencyLevel = 'scattered';
+      consistencyTitle = 'Scattered';
       consistencyEmoji = '🎲';
-      consistencyDescription = 'Work on locking in with the metronome.';
+      consistencyDescription = `Your timing varies widely. Most hits fall outside ±${TOLERANCE_MS}ms. Focus on feeling the pulse.`;
+    } else if (sigma > 12) {
+      // Cp 0.33-0.67 - Poor
+      consistencyLevel = 'loose';
+      consistencyTitle = 'Loose';
+      consistencyEmoji = '🌊';
+      consistencyDescription = `Getting there! Your timing spread of ±${Math.round(sigma)}ms shows room for improvement.`;
+    } else if (sigma > 8) {
+      // Cp 0.67-1.0 - Marginal
+      consistencyLevel = 'steady';
+      consistencyTitle = 'Steady';
+      consistencyEmoji = '🎯';
+      consistencyDescription = `Solid consistency with σ of ${sigma.toFixed(1)}ms. You can hold a groove.`;
+    } else if (sigma > 6) {
+      // Cp 1.0-1.33 - Capable
+      consistencyLevel = 'locked_in';
+      consistencyTitle = 'Locked In';
+      consistencyEmoji = '🔒';
+      consistencyDescription = `Tight timing with σ of ${sigma.toFixed(1)}ms. Studio-ready consistency.`;
+    } else if (sigma > 4) {
+      // Cp 1.33-2.0 - Excellent
+      consistencyLevel = 'diamond';
+      consistencyTitle = 'Diamond';
+      consistencyEmoji = '💎';
+      consistencyDescription = `Exceptional precision with σ of ${sigma.toFixed(1)}ms. Professional-grade timing.`;
+    } else {
+      // Cp > 2.0 - World Class
+      consistencyLevel = 'atomic_clock';
+      consistencyTitle = 'Atomic Clock';
+      consistencyEmoji = '⚛️';
+      consistencyDescription = `Inhuman precision with σ of ${sigma.toFixed(1)}ms. World-class timing.`;
     }
 
-    // Determine offset feel based on the image reference
-    // In our internal representation:
-    //   Negative offset = input came BEFORE expected = early/ahead/on top
-    //   Positive offset = input came AFTER expected = late/behind/dragging
-    // 
-    // But the user's reference image shows:
-    //   Positive (+) = on top / ahead
-    //   Negative (-) = behind / dragging
-    //
-    // So we flip the sign for display purposes
+    // Determine offset feel (unchanged logic)
     const displayOffset = -offset; // Flip for display: early becomes +, late becomes -
     const absOffset = Math.abs(offset);
     
@@ -305,12 +304,10 @@ export class StatsCalculator {
       offsetDescription = 'Right where it feels good. Perfect placement.';
     } else if (absOffset <= 10) {
       if (offset < 0) {
-        // Early = on top
         offsetFeel = 'snap';
         offsetTitle = 'Snap';
         offsetDescription = 'Slightly on top - adds energy and urgency.';
       } else {
-        // Late = behind
         offsetFeel = 'groove';
         offsetTitle = 'Groove';
         offsetDescription = 'Laid back - relaxed, behind-the-beat feel.';
@@ -351,12 +348,13 @@ export class StatsCalculator {
       consistencyLevel,
       consistencyTitle,
       consistencyEmoji,
-      consistencyPercent: sigmaPercent,
+      sigmaLevel,
+      cp,
       consistencyDescription,
       offsetFeel,
       offsetTitle,
       offsetDescription,
-      offsetMs: displayOffset, // Flipped: + = ahead/on top, - = behind/dragging
+      offsetMs: displayOffset,
     };
   }
 }
