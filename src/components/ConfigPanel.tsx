@@ -9,9 +9,19 @@ interface ConfigPanelProps {
   config: SessionConfig;
   onChange: (config: SessionConfig) => void;
   disabled?: boolean;
+  micSensitivity: number;
+  onMicSensitivityChange: (value: number) => void;
+  audioLevel: number;
 }
 
-export function ConfigPanel({ config, onChange, disabled }: ConfigPanelProps) {
+export function ConfigPanel({ 
+  config, 
+  onChange, 
+  disabled, 
+  micSensitivity, 
+  onMicSensitivityChange,
+  audioLevel 
+}: ConfigPanelProps) {
   const handleBpmChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const bpm = Math.max(20, Math.min(300, parseInt(e.target.value) || 60));
     onChange({ ...config, bpm });
@@ -114,6 +124,39 @@ export function ConfigPanel({ config, onChange, disabled }: ConfigPanelProps) {
           </button>
         </div>
       </div>
+
+      {config.inputMethod === 'audio' && (
+        <div className="config-section mic-settings">
+          <label htmlFor="sensitivity">Mic Sensitivity</label>
+          <div className="sensitivity-control">
+            <span className="sensitivity-label">Low</span>
+            <input
+              id="sensitivity"
+              type="range"
+              min="0"
+              max="100"
+              value={micSensitivity * 100}
+              onChange={(e) => onMicSensitivityChange(parseInt(e.target.value) / 100)}
+              className="sensitivity-slider"
+            />
+            <span className="sensitivity-label">High</span>
+          </div>
+          <div className="audio-level-meter">
+            <div className="level-label">Input Level</div>
+            <div className="level-bar-container">
+              <div 
+                className="level-bar" 
+                style={{ width: `${audioLevel * 100}%` }}
+              />
+              <div 
+                className="threshold-marker" 
+                style={{ left: `${(1 - micSensitivity) * 100}%` }}
+                title="Detection threshold"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

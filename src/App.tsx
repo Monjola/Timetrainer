@@ -8,6 +8,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { SessionConfig, SessionState, SessionResult, TimingOffset, SessionStats } from './types';
 import { sessionManager } from './core/SessionManager';
+import { inputHandler } from './core/InputHandler';
 import { StatsCalculator } from './core/StatsCalculator';
 import { ConfigPanel } from './components/ConfigPanel';
 import { SessionControls } from './components/SessionControls';
@@ -31,6 +32,21 @@ function App() {
   const [, setResult] = useState<SessionResult | null>(null);
   const [stats, setStats] = useState<SessionStats | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Microphone settings
+  const [micSensitivity, setMicSensitivity] = useState(0.7); // Default to fairly sensitive
+  const [audioLevel, setAudioLevel] = useState(0);
+
+  // Update mic sensitivity when it changes
+  useEffect(() => {
+    inputHandler.setAudioSensitivity(micSensitivity);
+  }, [micSensitivity]);
+
+  // Set up audio level callback for visual feedback
+  useEffect(() => {
+    inputHandler.setAudioLevelCallback(setAudioLevel);
+    return () => inputHandler.setAudioLevelCallback(null);
+  }, []);
 
   // Set up session manager callbacks
   useEffect(() => {
@@ -112,6 +128,9 @@ function App() {
                 config={config} 
                 onChange={setConfig}
                 disabled={sessionState === 'running' || sessionState === 'countdown'}
+                micSensitivity={micSensitivity}
+                onMicSensitivityChange={setMicSensitivity}
+                audioLevel={audioLevel}
               />
             </section>
 

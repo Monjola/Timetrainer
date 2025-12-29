@@ -32,6 +32,8 @@ export class InputHandler {
   private audioDetectionInterval: number | null = null;
   private lastAudioTriggerTime: number = 0;
   private readonly AUDIO_COOLDOWN_MS = 50; // Minimum ms between audio triggers
+  private audioSensitivity: number = 0.5; // 0-1 range, default middle
+  private onAudioLevel: ((level: number) => void) | null = null;
 
   // MIDI
   private midiAccess: MIDIAccess | null = null;
@@ -39,6 +41,15 @@ export class InputHandler {
 
   setCallbacks(callbacks: InputHandlerCallbacks): void {
     this.callbacks = callbacks;
+  }
+
+  setAudioSensitivity(sensitivity: number): void {
+    // Clamp to 0-1 range
+    this.audioSensitivity = Math.max(0, Math.min(1, sensitivity));
+  }
+
+  setAudioLevelCallback(callback: ((level: number) => void) | null): void {
+    this.onAudioLevel = callback;
   }
 
   async startListening(method: InputMethod): Promise<void> {
@@ -152,8 +163,12 @@ export class InputHandler {
       const bufferLength = this.analyserNode.fftSize;
       const dataArray = new Float32Array(bufferLength);
       let previousRMS = 0;
-      const ONSET_THRESHOLD = 0.1; // Adjust based on testing
-      const ONSET_RATIO = 2.0; // Current RMS must be this many times previous
+      
+      // Sensitivity maps to threshold: high sensitivity = low threshold
+      // Sensitivity 0 = threshold 0.3 (very insensitive)
+      // Sensitivity 1 = threshold 0.01 (very sensitive)
+      const getThreshold = () => 0.01 + (1 - this.audioSensitivity) * 0.29;
+      const ONSET_RATIO = 1.5; // Current RMS must be this many times previous
 
       this.audioDetectionInterval = window.setInterval(() => {
         if (!this.analyserNode || !this.isListening) return;
@@ -167,9 +182,16 @@ export class InputHandler {
         }
         const rms = Math.sqrt(sum / bufferLength);
 
+        // Report audio level for UI feedback (normalize to 0-1 range, cap at 1)
+        const normalizedLevel = Math.min(1, rms * 5);
+        if (this.onAudioLevel) {
+          this.onAudioLevel(normalizedLevel);
+        }
+
         // Onset detection: significant increase in amplitude
         const now = performance.now();
-        if (rms > ONSET_THRESHOLD && 
+        const threshold = getThreshold();
+        if (rms > threshold && 
             rms > previousRMS * ONSET_RATIO &&
             now - this.lastAudioTriggerTime > this.AUDIO_COOLDOWN_MS) {
           this.lastAudioTriggerTime = now;

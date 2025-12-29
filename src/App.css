@@ -221,6 +221,80 @@ section h2 {
   letter-spacing: 0.05em;
 }
 
+/* Mic Sensitivity Settings */
+.mic-settings {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.sensitivity-control {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.sensitivity-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  min-width: 2.5rem;
+}
+
+.sensitivity-slider {
+  flex: 1;
+}
+
+.audio-level-meter {
+  margin-top: 1rem;
+}
+
+.level-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.level-bar-container {
+  position: relative;
+  height: 12px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.level-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-primary) 0%, #ffcc00 70%, #ff4444 100%);
+  border-radius: 6px;
+  transition: width 0.05s ease-out;
+}
+
+.threshold-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #ff4444;
+  border-radius: 2px;
+  box-shadow: 0 0 4px rgba(255, 68, 68, 0.5);
+  transform: translateX(-50%);
+}
+
+.threshold-marker::after {
+  content: '▼';
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 8px;
+  color: #ff4444;
+}
+
 /* Input Indicator */
 .input-indicator {
   background: var(--bg-secondary);
