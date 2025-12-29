@@ -39,6 +39,11 @@ export class InputHandler {
   private midiAccess: MIDIAccess | null = null;
   private midiInputs: MIDIInput[] = [];
 
+  // Tap sound settings
+  private tapSoundEnabled: boolean = true;
+  private sessionActive: boolean = false;
+  private tapSoundType: 'click' | 'beep' | 'drum' | 'wood' = 'wood';
+
   setCallbacks(callbacks: InputHandlerCallbacks): void {
     this.callbacks = callbacks;
   }
@@ -50,6 +55,115 @@ export class InputHandler {
 
   setAudioLevelCallback(callback: ((level: number) => void) | null): void {
     this.onAudioLevel = callback;
+  }
+
+  setTapSoundEnabled(enabled: boolean): void {
+    this.tapSoundEnabled = enabled;
+  }
+
+  setSessionActive(active: boolean): void {
+    this.sessionActive = active;
+  }
+
+  setTapSoundType(type: 'click' | 'beep' | 'drum' | 'wood'): void {
+    this.tapSoundType = type;
+  }
+
+  /**
+   * Play a short tap/click sound for feedback
+   */
+  private playTapSound(): void {
+    // Only play during active session
+    if (!this.tapSoundEnabled || !this.sessionActive) return;
+    
+    const audioContext = metronomeEngine.getAudioContext();
+    if (!audioContext) return;
+
+    const now = audioContext.currentTime;
+
+    switch (this.tapSoundType) {
+      case 'click':
+        this.playSoundClick(audioContext, now);
+        break;
+      case 'beep':
+        this.playSoundBeep(audioContext, now);
+        break;
+      case 'drum':
+        this.playSoundDrum(audioContext, now);
+        break;
+      case 'wood':
+      default:
+        this.playSoundWood(audioContext, now);
+        break;
+    }
+  }
+
+  private playSoundClick(ctx: AudioContext, time: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.frequency.value = 1500;
+    osc.type = 'square';
+    
+    gain.gain.setValueAtTime(0.2, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.03);
+    
+    osc.start(time);
+    osc.stop(time + 0.03);
+  }
+
+  private playSoundBeep(ctx: AudioContext, time: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.frequency.value = 880;
+    osc.type = 'sine';
+    
+    gain.gain.setValueAtTime(0, time);
+    gain.gain.linearRampToValueAtTime(0.25, time + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
+    
+    osc.start(time);
+    osc.stop(time + 0.08);
+  }
+
+  private playSoundDrum(ctx: AudioContext, time: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    // Pitch drop for drum-like sound
+    osc.frequency.setValueAtTime(150, time);
+    osc.frequency.exponentialRampToValueAtTime(50, time + 0.1);
+    osc.type = 'sine';
+    
+    gain.gain.setValueAtTime(0.4, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+    
+    osc.start(time);
+    osc.stop(time + 0.15);
+  }
+
+  private playSoundWood(ctx: AudioContext, time: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.frequency.value = 800;
+    osc.type = 'triangle';
+    
+    gain.gain.setValueAtTime(0, time);
+    gain.gain.linearRampToValueAtTime(0.3, time + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+    
+    osc.start(time);
+    osc.stop(time + 0.06);
   }
 
   async startListening(method: InputMethod): Promise<void> {
@@ -121,14 +235,14 @@ export class InputHandler {
       // Use space bar or any letter key
       if (e.code === 'Space' || e.code.startsWith('Key')) {
         e.preventDefault();
-        this.handleInput(e.timeStamp);
+        this.handleInput(e.timeStamp, false, true); // Play tap sound
       }
     };
 
     this.boundClickHandler = (e: MouseEvent) => {
       // Only trigger on left click
       if (e.button !== 0) return;
-      this.handleInput(e.timeStamp);
+      this.handleInput(e.timeStamp, false, true); // Play tap sound
     };
 
     window.addEventListener('keydown', this.boundKeyHandler);
@@ -165,10 +279,10 @@ export class InputHandler {
       let previousRMS = 0;
       
       // Sensitivity maps to threshold: high sensitivity = low threshold
-      // Sensitivity 0 = threshold 0.3 (very insensitive)
-      // Sensitivity 1 = threshold 0.01 (very sensitive)
-      const getThreshold = () => 0.01 + (1 - this.audioSensitivity) * 0.29;
-      const ONSET_RATIO = 1.5; // Current RMS must be this many times previous
+      // Sensitivity 0 = threshold 0.15 (very insensitive)
+      // Sensitivity 1 = threshold 0.005 (very sensitive)
+      const getThreshold = () => 0.005 + (1 - this.audioSensitivity) * 0.145;
+      const ONSET_RATIO = 1.3; // Current RMS must be this many times previous
 
       this.audioDetectionInterval = window.setInterval(() => {
         if (!this.analyserNode || !this.isListening) return;
@@ -183,7 +297,8 @@ export class InputHandler {
         const rms = Math.sqrt(sum / bufferLength);
 
         // Report audio level for UI feedback (normalize to 0-1 range, cap at 1)
-        const normalizedLevel = Math.min(1, rms * 5);
+        // Multiply by 30 to make quiet sounds visible on the meter
+        const normalizedLevel = Math.min(1, rms * 30);
         if (this.onAudioLevel) {
           this.onAudioLevel(normalizedLevel);
         }
@@ -195,7 +310,8 @@ export class InputHandler {
             rms > previousRMS * ONSET_RATIO &&
             now - this.lastAudioTriggerTime > this.AUDIO_COOLDOWN_MS) {
           this.lastAudioTriggerTime = now;
-          this.handleInput(now);
+          // Pass true to compensate for microphone input latency
+          this.handleInput(now, true);
         }
 
         previousRMS = rms;
@@ -225,7 +341,7 @@ export class InputHandler {
             // Only trigger on actual note-on (velocity > 0)
             if (velocity > 0) {
               // MIDI events have their own timestamp
-              this.handleInput(event.timeStamp);
+              this.handleInput(event.timeStamp, false, true); // Play tap sound
             }
           }
         };
@@ -240,11 +356,29 @@ export class InputHandler {
     }
   }
 
-  private handleInput(performanceTimestamp: number): void {
+  private handleInput(performanceTimestamp: number, compensateForInputLatency: boolean = false, playSound: boolean = false): void {
     if (!this.callbacks || !this.isListening || !this.activeMethod) return;
 
+    // Play tap sound for keyboard/MIDI feedback
+    if (playSound) {
+      this.playTapSound();
+    }
+
+    let adjustedTimestamp = performanceTimestamp;
+    
+    // For audio input, compensate for microphone/processing latency
+    if (compensateForInputLatency) {
+      const audioContext = metronomeEngine.getAudioContext();
+      if (audioContext) {
+        // baseLatency is the input processing delay in seconds
+        const inputLatencyMs = (audioContext.baseLatency ?? 0) * 1000;
+        // The actual sound happened earlier than when we detected it
+        adjustedTimestamp = performanceTimestamp - inputLatencyMs;
+      }
+    }
+
     // Convert performance.now() timestamp to AudioContext time
-    const audioContextTime = metronomeEngine.performanceTimeToAudioTime(performanceTimestamp);
+    const audioContextTime = metronomeEngine.performanceTimeToAudioTime(adjustedTimestamp);
     
     this.callbacks.onInput(audioContextTime, this.activeMethod);
   }
@@ -255,6 +389,77 @@ export class InputHandler {
 
   isActive(): boolean {
     return this.isListening;
+  }
+
+  /**
+   * Start mic preview (for testing sensitivity without starting a session)
+   */
+  async startMicPreview(): Promise<void> {
+    if (this.isListening) return;
+    
+    const audioContext = new AudioContext();
+    
+    try {
+      this.audioStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+        }
+      });
+
+      const source = audioContext.createMediaStreamSource(this.audioStream);
+      this.analyserNode = audioContext.createAnalyser();
+      this.analyserNode.fftSize = 256;
+      this.analyserNode.smoothingTimeConstant = 0;
+
+      source.connect(this.analyserNode);
+
+      const bufferLength = this.analyserNode.fftSize;
+      const dataArray = new Float32Array(bufferLength);
+
+      this.audioDetectionInterval = window.setInterval(() => {
+        if (!this.analyserNode) return;
+
+        this.analyserNode.getFloatTimeDomainData(dataArray);
+
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i] * dataArray[i];
+        }
+        const rms = Math.sqrt(sum / bufferLength);
+        const normalizedLevel = Math.min(1, rms * 30);
+        
+        if (this.onAudioLevel) {
+          this.onAudioLevel(normalizedLevel);
+        }
+      }, 16); // ~60fps for smooth meter
+
+    } catch (error) {
+      console.error('Failed to start mic preview:', error);
+      throw new Error('Microphone access denied');
+    }
+  }
+
+  /**
+   * Stop mic preview
+   */
+  stopMicPreview(): void {
+    if (this.audioDetectionInterval !== null) {
+      clearInterval(this.audioDetectionInterval);
+      this.audioDetectionInterval = null;
+    }
+    if (this.analyserNode) {
+      this.analyserNode.disconnect();
+      this.analyserNode = null;
+    }
+    if (this.audioStream) {
+      this.audioStream.getTracks().forEach(track => track.stop());
+      this.audioStream = null;
+    }
+    if (this.onAudioLevel) {
+      this.onAudioLevel(0);
+    }
   }
 
   // Check if MIDI is available in this browser

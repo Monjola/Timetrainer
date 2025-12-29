@@ -5,7 +5,7 @@
  */
 
 import { mean, standardDeviation, min, max } from 'simple-statistics';
-import type { TimingOffset, SessionStats, HistogramBin, SkillLevel, SkillAssessment } from '../types';
+import type { TimingOffset, SessionStats, HistogramBin, ConsistencyLevel, OffsetFeel, SkillAssessment } from '../types';
 
 export class StatsCalculator {
   // Outlier threshold in standard deviations
@@ -208,98 +208,155 @@ export class StatsCalculator {
   /**
    * Assess skill level based on timing statistics
    * 
-   * Thresholds are based on standard deviation (σ):
-   * - σ represents the spread of timing offsets
-   * - 95% of hits fall within ±2σ of the mean
+   * Consistency thresholds are based on standard deviation as a percentage of beat duration:
+   * - Below 2.5%: Metronome-level
+   * - 3%: Session pro
+   * - 4%: Musician
+   * - Below 5%: Intermediate
+   * - Below 6%: Beginner
+   * - Above 6%: Inconsistent
    * 
-   * For example, σ = 8ms means 95% of hits are within ±16ms of where you're aiming
+   * Offset (timing feel) based on where you sit relative to the beat:
+   * - ±5ms: In the pocket / Groove
+   * - ±10ms: Snap / Drive
+   * - ±20-30ms: Dragging / Nervous
+   * - Beyond ±40ms: Day job territory
    */
-  static assessSkillLevel(stats: SessionStats): SkillAssessment {
+  static assessSkillLevel(stats: SessionStats, bpm: number): SkillAssessment {
+    const beatDurationMs = (60 / bpm) * 1000;
+    
     if (stats.count === 0) {
       return {
-        level: 'just_starting',
-        title: 'No Data',
-        emoji: '❓',
-        description: 'Complete a session to see your skill assessment.',
-        consistencyRating: 'N/A',
-        timingTendency: 'N/A',
-        range95: 0,
+        consistencyLevel: 'inconsistent',
+        consistencyTitle: 'No Data',
+        consistencyEmoji: '❓',
+        consistencyPercent: 0,
+        consistencyDescription: 'Complete a session to see your assessment.',
+        offsetFeel: 'in_the_pocket',
+        offsetTitle: 'N/A',
+        offsetDescription: 'N/A',
+        offsetMs: 0,
       };
     }
 
-    const { standardDeviation: sigma, mean: meanOffset } = stats;
-    const absMean = Math.abs(meanOffset);
-    const range95 = sigma * 2; // ±2σ contains 95% of hits
+    const { standardDeviation: sigma, mean: offset } = stats;
+    
+    // Calculate σ as percentage of beat duration
+    const sigmaPercent = (sigma / beatDurationMs) * 100;
 
-    // Determine consistency level based on corrected σ thresholds
-    // These represent standard deviation, NOT range
-    let level: SkillLevel;
-    let title: string;
-    let emoji: string;
-    let consistencyRating: string;
+    // Determine consistency level based on percentage thresholds
+    let consistencyLevel: ConsistencyLevel;
+    let consistencyTitle: string;
+    let consistencyEmoji: string;
+    let consistencyDescription: string;
 
-    if (sigma < 4) {
-      level = 'metronome';
-      title = 'Metronome';
-      emoji = '🤖';
-      consistencyRating = 'Inhuman precision';
-    } else if (sigma < 8) {
-      level = 'session_pro';
-      title = 'Session Pro';
-      emoji = '🎯';
-      consistencyRating = 'Studio-grade consistency';
-    } else if (sigma < 12) {
-      level = 'gigging_musician';
-      title = 'Gigging Musician';
-      emoji = '🎸';
-      consistencyRating = 'Stage-ready timing';
-    } else if (sigma < 20) {
-      level = 'intermediate';
-      title = 'Intermediate';
-      emoji = '📈';
-      consistencyRating = 'Solid foundation';
-    } else if (sigma < 35) {
-      level = 'beginner';
-      title = 'Beginner';
-      emoji = '🌱';
-      consistencyRating = 'Building consistency';
+    if (sigmaPercent < 2.5) {
+      consistencyLevel = 'metronome';
+      consistencyTitle = 'Metronome';
+      consistencyEmoji = '🤖';
+      consistencyDescription = 'Inhuman precision. Are you a drum machine?';
+    } else if (sigmaPercent < 3) {
+      consistencyLevel = 'session_pro';
+      consistencyTitle = 'Session Pro';
+      consistencyEmoji = '🎯';
+      consistencyDescription = 'Studio-grade consistency. Ready for any session.';
+    } else if (sigmaPercent < 4) {
+      consistencyLevel = 'musician';
+      consistencyTitle = 'Musician';
+      consistencyEmoji = '🎸';
+      consistencyDescription = 'Tight timing that holds down any groove.';
+    } else if (sigmaPercent < 5) {
+      consistencyLevel = 'intermediate';
+      consistencyTitle = 'Intermediate';
+      consistencyEmoji = '📈';
+      consistencyDescription = 'Solid foundation. Keep refining your pocket.';
+    } else if (sigmaPercent < 6) {
+      consistencyLevel = 'beginner';
+      consistencyTitle = 'Beginner';
+      consistencyEmoji = '🌱';
+      consistencyDescription = 'Building consistency. Focus on feeling the subdivision.';
     } else {
-      level = 'just_starting';
-      title = 'Just Starting';
-      emoji = '🎵';
-      consistencyRating = 'Keep practicing!';
+      consistencyLevel = 'inconsistent';
+      consistencyTitle = 'Inconsistent';
+      consistencyEmoji = '🎲';
+      consistencyDescription = 'Work on locking in with the metronome.';
     }
 
-    // Assess timing tendency (where you sit relative to the beat)
-    let timingTendency: string;
-    if (absMean < 5) {
-      timingTendency = 'Right on the beat';
-    } else if (absMean < 15) {
-      timingTendency = meanOffset < 0 ? 'Slightly ahead (pushing)' : 'Slightly behind (in the pocket)';
-    } else if (absMean < 30) {
-      timingTendency = meanOffset < 0 ? 'Pushing the beat' : 'Laying back';
-    } else {
-      timingTendency = meanOffset < 0 ? 'Rushing significantly' : 'Dragging significantly';
-    }
+    // Determine offset feel based on the image reference
+    // In our internal representation:
+    //   Negative offset = input came BEFORE expected = early/ahead/on top
+    //   Positive offset = input came AFTER expected = late/behind/dragging
+    // 
+    // But the user's reference image shows:
+    //   Positive (+) = on top / ahead
+    //   Negative (-) = behind / dragging
+    //
+    // So we flip the sign for display purposes
+    const displayOffset = -offset; // Flip for display: early becomes +, late becomes -
+    const absOffset = Math.abs(offset);
+    
+    let offsetFeel: OffsetFeel;
+    let offsetTitle: string;
+    let offsetDescription: string;
 
-    // Generate description based on level
-    const descriptions: Record<SkillLevel, string> = {
-      metronome: 'Your timing is unnaturally precise. Either you\'re a machine, or you\'ve achieved rhythmic enlightenment.',
-      session_pro: 'This is professional-level timing. Studios would hire you to lay down tracks. 95% of your hits are within ±' + range95.toFixed(0) + 'ms.',
-      gigging_musician: 'Tight enough to hold down a groove in any band. Your timing won\'t let the song down.',
-      intermediate: 'You\'ve got solid timing fundamentals. Regular practice will tighten this up further.',
-      beginner: 'You\'re finding the groove! Focus on subdividing and internalizing the pulse.',
-      just_starting: 'Timing is a skill that develops with practice. Try slower tempos and shorter sessions.',
-    };
+    if (absOffset <= 5) {
+      offsetFeel = 'in_the_pocket';
+      offsetTitle = 'In the Pocket';
+      offsetDescription = 'Right where it feels good. Perfect placement.';
+    } else if (absOffset <= 10) {
+      if (offset < 0) {
+        // Early = on top
+        offsetFeel = 'snap';
+        offsetTitle = 'Snap';
+        offsetDescription = 'Slightly on top - adds energy and urgency.';
+      } else {
+        // Late = behind
+        offsetFeel = 'groove';
+        offsetTitle = 'Groove';
+        offsetDescription = 'Laid back - relaxed, behind-the-beat feel.';
+      }
+    } else if (absOffset <= 20) {
+      if (offset < 0) {
+        offsetFeel = 'drive';
+        offsetTitle = 'Drive';
+        offsetDescription = 'Pushing forward - creates momentum and excitement.';
+      } else {
+        offsetFeel = 'dragging';
+        offsetTitle = 'Dragging';
+        offsetDescription = 'Behind the beat - may feel sluggish.';
+      }
+    } else if (absOffset <= 40) {
+      if (offset < 0) {
+        offsetFeel = 'nervous';
+        offsetTitle = 'Nervous';
+        offsetDescription = 'Rushing - try to relax and breathe with the tempo.';
+      } else {
+        offsetFeel = 'dragging';
+        offsetTitle = 'Dragging';
+        offsetDescription = 'Falling behind - focus on anticipating the beat.';
+      }
+    } else {
+      if (offset < 0) {
+        offsetFeel = 'day_job';
+        offsetTitle = 'Day Job';
+        offsetDescription = 'Way too far ahead - slow down and lock in with the click.';
+      } else {
+        offsetFeel = 'day_job';
+        offsetTitle = 'Get Some Sleep';
+        offsetDescription = 'Significantly behind - work on feeling the pulse.';
+      }
+    }
 
     return {
-      level,
-      title,
-      emoji,
-      description: descriptions[level],
-      consistencyRating,
-      timingTendency,
-      range95,
+      consistencyLevel,
+      consistencyTitle,
+      consistencyEmoji,
+      consistencyPercent: sigmaPercent,
+      consistencyDescription,
+      offsetFeel,
+      offsetTitle,
+      offsetDescription,
+      offsetMs: displayOffset, // Flipped: + = ahead/on top, - = behind/dragging
     };
   }
 }

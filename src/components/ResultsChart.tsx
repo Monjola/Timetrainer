@@ -13,9 +13,10 @@ import { StatsCalculator } from '../core/StatsCalculator';
 
 interface ResultsChartProps {
   stats: SessionStats;
+  bpm: number;
 }
 
-export function ResultsChart({ stats }: ResultsChartProps) {
+export function ResultsChart({ stats, bpm }: ResultsChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -161,10 +162,11 @@ export function ResultsChart({ stats }: ResultsChartProps) {
         ctx.textAlign = 'center';
         ctx.fillText(line.label, x, padding.top - 8);
         
-        // Value below axis
+        // Value below axis - flip sign for display (+ = on top, - = behind)
+        const displayValue = -line.value;
         ctx.fillStyle = '#666666';
         ctx.font = '10px system-ui';
-        ctx.fillText(`${line.value.toFixed(0)}ms`, x, height - padding.bottom + 30);
+        ctx.fillText(`${displayValue >= 0 ? '+' : ''}${displayValue.toFixed(0)}ms`, x, height - padding.bottom + 30);
       }
     }
 
@@ -200,11 +202,12 @@ export function ResultsChart({ stats }: ResultsChartProps) {
       ctx.fillText('BEAT', zeroX, height - padding.bottom + 45);
     }
 
-    // Axis labels
+    // Axis labels - Note: internal values are negative=early, positive=late
+    // But we display as: left = ahead/on top (+), right = behind/dragging (-)
     ctx.fillStyle = '#888888';
     ctx.font = '12px system-ui';
     ctx.textAlign = 'center';
-    ctx.fillText('← Early (pushing) | Late (dragging) →', width / 2, height - 10);
+    ctx.fillText('← On top (+) | Behind (-) →', width / 2, height - 10);
 
     ctx.save();
     ctx.translate(15, height / 2);
@@ -222,16 +225,29 @@ export function ResultsChart({ stats }: ResultsChartProps) {
     );
   }
 
-  const skillAssessment = StatsCalculator.assessSkillLevel(stats);
+  const assessment = StatsCalculator.assessSkillLevel(stats, bpm);
+  const beatDurationMs = (60 / bpm) * 1000;
 
   return (
     <div className="results-chart">
-      {/* Skill Level Badge */}
-      <div className={`skill-badge skill-${skillAssessment.level}`}>
-        <span className="skill-emoji">{skillAssessment.emoji}</span>
-        <div className="skill-info">
-          <span className="skill-title">{skillAssessment.title}</span>
-          <span className="skill-consistency">{skillAssessment.consistencyRating}</span>
+      {/* Two-column assessment badges */}
+      <div className="assessment-badges">
+        {/* Consistency Badge */}
+        <div className={`assessment-badge consistency-${assessment.consistencyLevel}`}>
+          <span className="badge-emoji">{assessment.consistencyEmoji}</span>
+          <div className="badge-info">
+            <span className="badge-title">{assessment.consistencyTitle}</span>
+            <span className="badge-subtitle">Consistency</span>
+          </div>
+        </div>
+
+        {/* Offset Badge */}
+        <div className={`assessment-badge offset-${assessment.offsetFeel}`}>
+          <span className="badge-emoji">{assessment.offsetMs >= 0 ? '🎯' : '⚡'}</span>
+          <div className="badge-info">
+            <span className="badge-title">{assessment.offsetTitle}</span>
+            <span className="badge-subtitle">Timing Feel</span>
+          </div>
         </div>
       </div>
 
@@ -243,16 +259,18 @@ export function ResultsChart({ stats }: ResultsChartProps) {
       
       <div className="stats-summary">
         <div className="stat-item">
-          <span className="stat-label">Mean (μ)</span>
-          <span className="stat-value">{stats.mean.toFixed(1)}ms</span>
+          <span className="stat-label">Offset</span>
+          <span className={`stat-value ${assessment.offsetMs >= 0 ? 'early' : 'late'}`}>
+            {assessment.offsetMs >= 0 ? '+' : ''}{assessment.offsetMs.toFixed(1)}ms
+          </span>
         </div>
         <div className="stat-item">
           <span className="stat-label">Std Dev (σ)</span>
           <span className="stat-value">{stats.standardDeviation.toFixed(1)}ms</span>
         </div>
         <div className="stat-item highlight">
-          <span className="stat-label">95% Range</span>
-          <span className="stat-value">±{skillAssessment.range95.toFixed(0)}ms</span>
+          <span className="stat-label">σ of Beat</span>
+          <span className="stat-value">{assessment.consistencyPercent.toFixed(1)}%</span>
         </div>
         <div className="stat-item">
           <span className="stat-label">Samples</span>
@@ -260,47 +278,97 @@ export function ResultsChart({ stats }: ResultsChartProps) {
         </div>
       </div>
 
-      <div className="timing-tendency">
-        <span className="tendency-label">Timing tendency:</span>
-        <span className="tendency-value">{skillAssessment.timingTendency}</span>
+      {/* Offset interpretation */}
+      <div className="assessment-section">
+        <div className="assessment-header">
+          <span className="assessment-label">Timing Feel</span>
+          <span className={`assessment-value offset-${assessment.offsetFeel}`}>
+            {assessment.offsetTitle}
+          </span>
+        </div>
+        <p className="assessment-description">{assessment.offsetDescription}</p>
       </div>
 
-      <div className="interpretation">
-        {skillAssessment.description}
+      {/* Consistency interpretation */}
+      <div className="assessment-section">
+        <div className="assessment-header">
+          <span className="assessment-label">Consistency</span>
+          <span className={`assessment-value consistency-${assessment.consistencyLevel}`}>
+            {assessment.consistencyTitle}
+          </span>
+        </div>
+        <p className="assessment-description">{assessment.consistencyDescription}</p>
       </div>
 
-      <div className="skill-thresholds">
-        <h4>Skill Levels</h4>
-        <div className="threshold-list">
-          <div className={`threshold-item ${skillAssessment.level === 'metronome' ? 'current' : ''}`}>
-            <span className="threshold-emoji">🤖</span>
-            <span className="threshold-name">Metronome</span>
-            <span className="threshold-range">±8ms</span>
+      {/* Consistency scale */}
+      <div className="consistency-scale">
+        <h4>Consistency Levels <span className="scale-note">(σ as % of beat at {bpm} BPM = {beatDurationMs.toFixed(0)}ms)</span></h4>
+        <div className="scale-bar">
+          <div className="scale-segments">
+            <div className={`scale-segment metronome ${assessment.consistencyLevel === 'metronome' ? 'current' : ''}`}>
+              <span className="segment-label">🤖 Metronome</span>
+              <span className="segment-value">&lt;2.5%</span>
+            </div>
+            <div className={`scale-segment session_pro ${assessment.consistencyLevel === 'session_pro' ? 'current' : ''}`}>
+              <span className="segment-label">🎯 Session Pro</span>
+              <span className="segment-value">&lt;3%</span>
+            </div>
+            <div className={`scale-segment musician ${assessment.consistencyLevel === 'musician' ? 'current' : ''}`}>
+              <span className="segment-label">🎸 Musician</span>
+              <span className="segment-value">&lt;4%</span>
+            </div>
+            <div className={`scale-segment intermediate ${assessment.consistencyLevel === 'intermediate' ? 'current' : ''}`}>
+              <span className="segment-label">📈 Intermediate</span>
+              <span className="segment-value">&lt;5%</span>
+            </div>
+            <div className={`scale-segment beginner ${assessment.consistencyLevel === 'beginner' ? 'current' : ''}`}>
+              <span className="segment-label">🌱 Beginner</span>
+              <span className="segment-value">&lt;6%</span>
+            </div>
+            <div className={`scale-segment inconsistent ${assessment.consistencyLevel === 'inconsistent' ? 'current' : ''}`}>
+              <span className="segment-label">🎲 Inconsistent</span>
+              <span className="segment-value">&gt;6%</span>
+            </div>
           </div>
-          <div className={`threshold-item ${skillAssessment.level === 'session_pro' ? 'current' : ''}`}>
-            <span className="threshold-emoji">🎯</span>
-            <span className="threshold-name">Session Pro</span>
-            <span className="threshold-range">±16ms</span>
+          <div 
+            className="scale-marker" 
+            style={{ left: `${Math.min(100, (assessment.consistencyPercent / 8) * 100)}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Offset scale reference - follows user's image: + = on top, - = behind */}
+      <div className="offset-scale">
+        <h4>Offset Reference</h4>
+        <div className="offset-ruler">
+          <div className="ruler-labels">
+            <span className="ruler-label extreme">Day Job</span>
+            <span className="ruler-label">Nervous</span>
+            <span className="ruler-label">Drive</span>
+            <span className="ruler-label good">Snap</span>
+            <span className="ruler-label center">Pocket</span>
+            <span className="ruler-label good">Groove</span>
+            <span className="ruler-label">Dragging</span>
+            <span className="ruler-label extreme">Get Sleep</span>
           </div>
-          <div className={`threshold-item ${skillAssessment.level === 'gigging_musician' ? 'current' : ''}`}>
-            <span className="threshold-emoji">🎸</span>
-            <span className="threshold-name">Gigging Musician</span>
-            <span className="threshold-range">±24ms</span>
+          <div className="ruler-bar">
+            <div 
+              className="ruler-marker"
+              style={{ 
+                // assessment.offsetMs: + = ahead (left), - = behind (right)
+                // Scale: +40ms = 0%, 0ms = 50%, -40ms = 100%
+                left: `${Math.max(0, Math.min(100, 50 - (assessment.offsetMs / 40) * 50))}%` 
+              }}
+            />
           </div>
-          <div className={`threshold-item ${skillAssessment.level === 'intermediate' ? 'current' : ''}`}>
-            <span className="threshold-emoji">📈</span>
-            <span className="threshold-name">Intermediate</span>
-            <span className="threshold-range">±40ms</span>
-          </div>
-          <div className={`threshold-item ${skillAssessment.level === 'beginner' ? 'current' : ''}`}>
-            <span className="threshold-emoji">🌱</span>
-            <span className="threshold-name">Beginner</span>
-            <span className="threshold-range">±70ms</span>
-          </div>
-          <div className={`threshold-item ${skillAssessment.level === 'just_starting' ? 'current' : ''}`}>
-            <span className="threshold-emoji">🎵</span>
-            <span className="threshold-name">Just Starting</span>
-            <span className="threshold-range">&gt;±70ms</span>
+          <div className="ruler-values">
+            <span>+40ms</span>
+            <span>+20ms</span>
+            <span>+10ms</span>
+            <span>0</span>
+            <span>-10ms</span>
+            <span>-20ms</span>
+            <span>-40ms</span>
           </div>
         </div>
       </div>

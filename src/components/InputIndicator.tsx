@@ -48,10 +48,12 @@ export function InputIndicator({
       setInputFlash(true);
       
       // Determine color based on offset
+      // Internal: negative = early/ahead, positive = late/behind
       const offset = lastInput.offsetMs;
       if (Math.abs(offset) < 20) {
         setInputColor('perfect');
       } else if (offset < 0) {
+        // Early/ahead = use early color
         setInputColor('early');
       } else {
         setInputColor('late');
@@ -110,11 +112,12 @@ export function InputIndicator({
         {lastInput && (
           <div className="offset-display">
             <span className={`offset-value ${inputColor}`}>
-              {lastInput.offsetMs > 0 ? '+' : ''}{lastInput.offsetMs.toFixed(1)}ms
+              {/* Flip sign for display: + = on top/ahead, - = behind */}
+              {-lastInput.offsetMs >= 0 ? '+' : ''}{(-lastInput.offsetMs).toFixed(1)}ms
             </span>
             <span className="offset-label">
               {Math.abs(lastInput.offsetMs) < 20 ? 'Perfect!' :
-               lastInput.offsetMs < 0 ? 'Early' : 'Late'}
+               lastInput.offsetMs < 0 ? 'On Top' : 'Behind'}
             </span>
           </div>
         )}

@@ -2,7 +2,7 @@
  * ConfigPanel - Settings for BPM, duration, and input method
  */
 
-import type { InputMethod, SessionConfig } from '../types';
+import type { InputMethod, SessionConfig, MetronomeSoundType, TapSoundType } from '../types';
 import { InputHandler } from '../core/InputHandler';
 
 interface ConfigPanelProps {
@@ -12,6 +12,8 @@ interface ConfigPanelProps {
   micSensitivity: number;
   onMicSensitivityChange: (value: number) => void;
   audioLevel: number;
+  isMicTesting: boolean;
+  onMicTestToggle: () => void;
 }
 
 export function ConfigPanel({ 
@@ -20,7 +22,9 @@ export function ConfigPanel({
   disabled, 
   micSensitivity, 
   onMicSensitivityChange,
-  audioLevel 
+  audioLevel,
+  isMicTesting,
+  onMicTestToggle
 }: ConfigPanelProps) {
   const handleBpmChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const bpm = Math.max(20, Math.min(300, parseInt(e.target.value) || 60));
@@ -36,9 +40,31 @@ export function ConfigPanel({
     onChange({ ...config, inputMethod: method });
   };
 
+  const handleMetronomeSoundChange = (sound: MetronomeSoundType) => {
+    onChange({ ...config, metronomeSound: sound });
+  };
+
+  const handleTapSoundChange = (sound: TapSoundType) => {
+    onChange({ ...config, tapSound: sound });
+  };
+
   const getDurationInSeconds = () => {
     return ((config.durationBeats / config.bpm) * 60).toFixed(1);
   };
+
+  const metronomeSounds: { type: MetronomeSoundType; label: string; emoji: string }[] = [
+    { type: 'click', label: 'Click', emoji: '🔔' },
+    { type: 'beep', label: 'Beep', emoji: '📢' },
+    { type: 'wood', label: 'Wood', emoji: '🪵' },
+    { type: 'hihat', label: 'Hi-hat', emoji: '🥁' },
+  ];
+
+  const tapSounds: { type: TapSoundType; label: string; emoji: string }[] = [
+    { type: 'click', label: 'Click', emoji: '🔔' },
+    { type: 'beep', label: 'Beep', emoji: '📢' },
+    { type: 'drum', label: 'Drum', emoji: '🥁' },
+    { type: 'wood', label: 'Wood', emoji: '🪵' },
+  ];
 
   return (
     <div className="config-panel">
@@ -125,33 +151,97 @@ export function ConfigPanel({
         </div>
       </div>
 
+      <div className="config-section sound-settings">
+        <div className="sound-row">
+          <label>Metronome Sound</label>
+          <div className="sound-buttons">
+            {metronomeSounds.map(({ type, label, emoji }) => (
+              <button
+                key={type}
+                className={`sound-button ${config.metronomeSound === type ? 'active' : ''}`}
+                onClick={() => handleMetronomeSoundChange(type)}
+                disabled={disabled}
+                title={label}
+              >
+                <span className="sound-emoji">{emoji}</span>
+                <span className="sound-label">{label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {config.inputMethod !== 'audio' && (
+          <div className="sound-row">
+            <label>Tap Sound</label>
+            <div className="sound-buttons">
+              {tapSounds.map(({ type, label, emoji }) => (
+                <button
+                  key={type}
+                  className={`sound-button ${config.tapSound === type ? 'active' : ''}`}
+                  onClick={() => handleTapSoundChange(type)}
+                  disabled={disabled}
+                  title={label}
+                >
+                  <span className="sound-emoji">{emoji}</span>
+                  <span className="sound-label">{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
       {config.inputMethod === 'audio' && (
         <div className="config-section mic-settings">
-          <label htmlFor="sensitivity">Mic Sensitivity</label>
-          <div className="sensitivity-control">
-            <span className="sensitivity-label">Low</span>
-            <input
-              id="sensitivity"
-              type="range"
-              min="0"
-              max="100"
-              value={micSensitivity * 100}
-              onChange={(e) => onMicSensitivityChange(parseInt(e.target.value) / 100)}
-              className="sensitivity-slider"
-            />
-            <span className="sensitivity-label">High</span>
+          <div className="mic-header">
+            <label>Mic Threshold</label>
+            <button 
+              className={`test-mic-button ${isMicTesting ? 'active' : ''}`}
+              onClick={onMicTestToggle}
+              disabled={disabled}
+            >
+              {isMicTesting ? '⏹ Stop Test' : '🎤 Test Mic'}
+            </button>
           </div>
           <div className="audio-level-meter">
-            <div className="level-label">Input Level</div>
-            <div className="level-bar-container">
+            <div className="level-label">
+              {!isMicTesting && <span className="hint">Click Test Mic, then drag the red line to set threshold</span>}
+              {isMicTesting && <span className="hint">Drag the red line to where your claps peak</span>}
+            </div>
+            <div 
+              className="level-bar-container interactive"
+              onMouseDown={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const updateThreshold = (clientX: number) => {
+                  const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+                  // Convert position to sensitivity: position = threshold * 30
+                  // threshold = 0.005 + (1 - sens) * 0.145
+                  // So: x = (0.005 + (1 - sens) * 0.145) * 30
+                  // x/30 = 0.005 + (1 - sens) * 0.145
+                  // (x/30 - 0.005) / 0.145 = 1 - sens
+                  // sens = 1 - (x/30 - 0.005) / 0.145
+                  const sens = Math.max(0, Math.min(1, 1 - (x / 30 - 0.005) / 0.145));
+                  onMicSensitivityChange(sens);
+                };
+                updateThreshold(e.clientX);
+                
+                const onMouseMove = (e: MouseEvent) => updateThreshold(e.clientX);
+                const onMouseUp = () => {
+                  window.removeEventListener('mousemove', onMouseMove);
+                  window.removeEventListener('mouseup', onMouseUp);
+                };
+                window.addEventListener('mousemove', onMouseMove);
+                window.addEventListener('mouseup', onMouseUp);
+              }}
+            >
               <div 
                 className="level-bar" 
                 style={{ width: `${audioLevel * 100}%` }}
               />
               <div 
-                className="threshold-marker" 
-                style={{ left: `${(1 - micSensitivity) * 100}%` }}
-                title="Detection threshold"
+                className="threshold-marker draggable" 
+                style={{ left: `${Math.min(100, (0.005 + (1 - micSensitivity) * 0.145) * 30 * 100)}%` }}
+                title="Drag to set threshold"
               />
             </div>
           </div>

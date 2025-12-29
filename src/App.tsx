@@ -9,6 +9,7 @@ import { useState, useCallback, useEffect } from 'react';
 import type { SessionConfig, SessionState, SessionResult, TimingOffset, SessionStats } from './types';
 import { sessionManager } from './core/SessionManager';
 import { inputHandler } from './core/InputHandler';
+import { metronomeEngine } from './core/MetronomeEngine';
 import { StatsCalculator } from './core/StatsCalculator';
 import { ConfigPanel } from './components/ConfigPanel';
 import { SessionControls } from './components/SessionControls';
@@ -21,7 +22,9 @@ function App() {
   const [config, setConfig] = useState<SessionConfig>({
     bpm: 100,
     durationBeats: 32,
-    inputMethod: 'keyboard'
+    inputMethod: 'keyboard',
+    metronomeSound: 'click',
+    tapSound: 'wood'
   });
 
   // Session state
@@ -36,11 +39,29 @@ function App() {
   // Microphone settings
   const [micSensitivity, setMicSensitivity] = useState(0.7); // Default to fairly sensitive
   const [audioLevel, setAudioLevel] = useState(0);
+  const [isMicTesting, setIsMicTesting] = useState(false);
 
   // Update mic sensitivity when it changes
   useEffect(() => {
     inputHandler.setAudioSensitivity(micSensitivity);
   }, [micSensitivity]);
+
+  // Stop mic preview when switching away from audio input
+  useEffect(() => {
+    if (config.inputMethod !== 'audio' && isMicTesting) {
+      inputHandler.stopMicPreview();
+      setIsMicTesting(false);
+    }
+  }, [config.inputMethod, isMicTesting]);
+
+  // Update sound types when config changes
+  useEffect(() => {
+    metronomeEngine.setSoundType(config.metronomeSound);
+  }, [config.metronomeSound]);
+
+  useEffect(() => {
+    inputHandler.setTapSoundType(config.tapSound);
+  }, [config.tapSound]);
 
   // Set up audio level callback for visual feedback
   useEffect(() => {
@@ -53,6 +74,8 @@ function App() {
     sessionManager.setCallbacks({
       onStateChange: (state) => {
         setSessionState(state);
+        // Enable tap sounds during countdown and running
+        inputHandler.setSessionActive(state === 'countdown' || state === 'running');
         if (state === 'idle') {
           setCurrentBeat(-1);
           setLastInput(null);
@@ -81,6 +104,12 @@ function App() {
 
   // Handle start
   const handleStart = useCallback(async () => {
+    // Stop mic preview if running
+    if (isMicTesting) {
+      inputHandler.stopMicPreview();
+      setIsMicTesting(false);
+    }
+    
     setError(null);
     setResult(null);
     setStats(null);
@@ -91,7 +120,7 @@ function App() {
       setError(err instanceof Error ? err.message : 'Failed to start session');
       setSessionState('idle');
     }
-  }, [config]);
+  }, [config, isMicTesting]);
 
   // Handle stop
   const handleStop = useCallback(() => {
@@ -105,6 +134,21 @@ function App() {
     setStats(null);
     setLastInput(null);
   }, []);
+
+  // Handle mic test toggle
+  const handleMicTestToggle = useCallback(async () => {
+    if (isMicTesting) {
+      inputHandler.stopMicPreview();
+      setIsMicTesting(false);
+    } else {
+      try {
+        await inputHandler.startMicPreview();
+        setIsMicTesting(true);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to access microphone');
+      }
+    }
+  }, [isMicTesting]);
 
   return (
     <div className="app">
@@ -131,6 +175,8 @@ function App() {
                 micSensitivity={micSensitivity}
                 onMicSensitivityChange={setMicSensitivity}
                 audioLevel={audioLevel}
+                isMicTesting={isMicTesting}
+                onMicTestToggle={handleMicTestToggle}
               />
             </section>
 
@@ -160,7 +206,7 @@ function App() {
         {sessionState === 'finished' && stats && (
           <section className="results-section">
             <h2>Session Results</h2>
-            <ResultsChart stats={stats} />
+            <ResultsChart stats={stats} bpm={config.bpm} />
           </section>
         )}
 

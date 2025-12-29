@@ -1,11 +1,15 @@
 // Types for the Timing Trainer app
 
 export type InputMethod = 'keyboard' | 'audio' | 'midi';
+export type MetronomeSoundType = 'click' | 'beep' | 'wood' | 'hihat';
+export type TapSoundType = 'click' | 'beep' | 'drum' | 'wood';
 
 export interface SessionConfig {
   bpm: number;
   durationBeats: number; // Number of beats in the session
   inputMethod: InputMethod;
+  metronomeSound: MetronomeSoundType;
+  tapSound: TapSoundType;
 }
 
 export interface TimingOffset {
@@ -50,21 +54,35 @@ export interface InputCallbacks {
 }
 
 // Skill level assessment types
-export type SkillLevel = 
+export type ConsistencyLevel = 
   | 'metronome' 
   | 'session_pro' 
-  | 'gigging_musician' 
+  | 'musician' 
   | 'intermediate' 
   | 'beginner' 
-  | 'just_starting';
+  | 'inconsistent';
+
+export type OffsetFeel = 
+  | 'in_the_pocket'
+  | 'groove'
+  | 'snap'
+  | 'drive'
+  | 'dragging'
+  | 'nervous'
+  | 'day_job';
 
 export interface SkillAssessment {
-  level: SkillLevel;
-  title: string;
-  emoji: string;
-  description: string;
-  consistencyRating: string;
-  timingTendency: string;
-  range95: number; // ±2σ range in ms (contains 95% of hits)
+  // Consistency (standard deviation as % of beat)
+  consistencyLevel: ConsistencyLevel;
+  consistencyTitle: string;
+  consistencyEmoji: string;
+  consistencyPercent: number; // σ as percentage of beat duration
+  consistencyDescription: string;
+  
+  // Offset (timing feel)
+  offsetFeel: OffsetFeel;
+  offsetTitle: string;
+  offsetDescription: string;
+  offsetMs: number;
 }
 
