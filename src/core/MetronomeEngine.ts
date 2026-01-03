@@ -371,7 +371,7 @@ export class MetronomeEngine {
   /**
    * Schedule a drum sound at the specified time
    */
-  private scheduleDrumSound(time: number, sound: DrumSoundType): void {
+  public scheduleDrumSound(time: number, sound: DrumSoundType): void {
     if (!this.audioContext || sound === 'none') return;
 
     switch (sound) {
