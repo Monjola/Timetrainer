@@ -19,11 +19,11 @@ interface ConfigPanelProps {
   onPreviewToggle: () => void;
 }
 
-export function ConfigPanel({ 
-  config, 
-  onChange, 
-  disabled, 
-  micSensitivity, 
+export function ConfigPanel({
+  config,
+  onChange,
+  disabled,
+  micSensitivity,
   onMicSensitivityChange,
   audioLevel,
   isMicTesting,
@@ -124,7 +124,7 @@ export function ConfigPanel({
             <span className="method-icon">⌨️</span>
             <span className="method-label">Keyboard / Click</span>
           </button>
-          
+
           <button
             className={`method-button ${config.inputMethod === 'audio' ? 'active' : ''}`}
             onClick={() => handleMethodChange('audio')}
@@ -134,7 +134,7 @@ export function ConfigPanel({
             <span className="method-icon">🎤</span>
             <span className="method-label">Microphone</span>
           </button>
-          
+
           <button
             className={`method-button ${config.inputMethod === 'midi' ? 'active' : ''}`}
             onClick={() => handleMethodChange('midi')}
@@ -169,7 +169,6 @@ export function ConfigPanel({
               <div className="current-tap-sound">
                 {getCurrentTapSound() && (
                   <>
-                    <span className="sound-emoji">{getCurrentTapSound()?.emoji}</span>
                     <span className="sound-name">{getCurrentTapSound()?.label}</span>
                   </>
                 )}
@@ -183,21 +182,21 @@ export function ConfigPanel({
                 <optgroup label="Drums">
                   {ALL_SOUNDS.filter(s => s.category === 'drums').map(sound => (
                     <option key={sound.sound} value={sound.sound}>
-                      {sound.emoji} {sound.label}
+                      {sound.label}
                     </option>
                   ))}
                 </optgroup>
                 <optgroup label="Metronome">
                   {ALL_SOUNDS.filter(s => s.category === 'metronome').map(sound => (
                     <option key={sound.sound} value={sound.sound}>
-                      {sound.emoji} {sound.label}
+                      {sound.label}
                     </option>
                   ))}
                 </optgroup>
                 <optgroup label="Bass">
                   {ALL_SOUNDS.filter(s => s.category === 'bass').map(sound => (
                     <option key={sound.sound} value={sound.sound}>
-                      {sound.emoji} {sound.label}
+                      {sound.label}
                     </option>
                   ))}
                 </optgroup>
@@ -211,7 +210,7 @@ export function ConfigPanel({
         <div className="config-section mic-settings">
           <div className="mic-header">
             <label>Mic Threshold</label>
-            <button 
+            <button
               className={`test-mic-button ${isMicTesting ? 'active' : ''}`}
               onClick={onMicTestToggle}
               disabled={disabled}
@@ -224,7 +223,7 @@ export function ConfigPanel({
               {!isMicTesting && <span className="hint">Click Test Mic, then drag the red line to set threshold</span>}
               {isMicTesting && <span className="hint">Drag the red line to where your claps peak</span>}
             </div>
-            <div 
+            <div
               className="level-bar-container interactive"
               onMouseDown={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
@@ -240,7 +239,7 @@ export function ConfigPanel({
                   onMicSensitivityChange(sens);
                 };
                 updateThreshold(e.clientX);
-                
+
                 const onMouseMove = (e: MouseEvent) => updateThreshold(e.clientX);
                 const onMouseUp = () => {
                   window.removeEventListener('mousemove', onMouseMove);
@@ -250,12 +249,12 @@ export function ConfigPanel({
                 window.addEventListener('mouseup', onMouseUp);
               }}
             >
-              <div 
-                className="level-bar" 
+              <div
+                className="level-bar"
                 style={{ width: `${audioLevel * 100}%` }}
               />
-              <div 
-                className="threshold-marker draggable" 
+              <div
+                className="threshold-marker draggable"
                 style={{ left: `${Math.min(100, (0.005 + (1 - micSensitivity) * 0.145) * 30 * 100)}%` }}
                 title="Drag to set threshold"
               />
