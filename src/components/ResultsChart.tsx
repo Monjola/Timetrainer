@@ -29,7 +29,7 @@ export function ResultsChart({ stats, bpm }: ResultsChartProps) {
     // Get device pixel ratio for sharp rendering
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
-    
+
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
     ctx.scale(dpr, dpr);
@@ -49,7 +49,7 @@ export function ResultsChart({ stats, bpm }: ResultsChartProps) {
     // Calculate axis ranges
     const histogramMin = stats.histogram[0].min;
     const histogramMax = stats.histogram[stats.histogram.length - 1].max;
-    
+
     // Extend range to show ±3σ if they fit
     const xMin = Math.min(histogramMin, stats.mean - 3.5 * stats.standardDeviation);
     const xMax = Math.max(histogramMax, stats.mean + 3.5 * stats.standardDeviation);
@@ -65,7 +65,7 @@ export function ResultsChart({ stats, bpm }: ResultsChartProps) {
     // Draw grid lines
     ctx.strokeStyle = '#1a1a2e';
     ctx.lineWidth = 1;
-    
+
     // Vertical grid at standard deviations
     const stdDevLines = StatsCalculator.getStdDevLines(stats.mean, stats.standardDeviation);
     for (const line of stdDevLines) {
@@ -90,10 +90,10 @@ export function ResultsChart({ stats, bpm }: ResultsChartProps) {
       const normalizedMid = (bin.midpoint - xMin) / xRange;
       const hue = normalizedMid < 0.5 ? 200 : 30; // Blue for early, orange for late
       const saturation = Math.abs(normalizedMid - 0.5) * 100 + 30;
-      
+
       ctx.fillStyle = `hsla(${hue}, ${saturation}%, 50%, 0.7)`;
       ctx.fillRect(x, y, barWidth, barHeight);
-      
+
       // Bar border
       ctx.strokeStyle = `hsla(${hue}, ${saturation}%, 60%, 0.9)`;
       ctx.lineWidth = 1;
@@ -103,26 +103,26 @@ export function ResultsChart({ stats, bpm }: ResultsChartProps) {
     // Draw normal distribution curve
     if (stats.standardDeviation > 0) {
       const curvePoints = StatsCalculator.generateNormalCurve(
-        stats.mean, 
-        stats.standardDeviation, 
-        xMin, 
-        xMax, 
+        stats.mean,
+        stats.standardDeviation,
+        xMin,
+        xMax,
         200
       );
 
       // Scale the curve to match histogram height
       const binWidth = stats.histogram[0].max - stats.histogram[0].min;
       const scaleFactor = stats.count * binWidth;
-      
+
       ctx.beginPath();
       ctx.strokeStyle = '#e0e0e0';
       ctx.lineWidth = 2;
-      
+
       let started = false;
       for (const point of curvePoints) {
         const x = xToCanvas(point.x);
         const y = yToCanvas(point.y * scaleFactor);
-        
+
         if (!started) {
           ctx.moveTo(x, y);
           started = true;
@@ -161,7 +161,7 @@ export function ResultsChart({ stats, bpm }: ResultsChartProps) {
         ctx.font = '12px system-ui';
         ctx.textAlign = 'center';
         ctx.fillText(line.label, x, padding.top - 8);
-        
+
         // Value below axis - flip sign for display (+ = on top, - = behind)
         const displayValue = -line.value;
         ctx.fillStyle = '#666666';
@@ -173,7 +173,7 @@ export function ResultsChart({ stats, bpm }: ResultsChartProps) {
     // Draw axes
     ctx.strokeStyle = '#444444';
     ctx.lineWidth = 1;
-    
+
     // X axis
     ctx.beginPath();
     ctx.moveTo(padding.left, height - padding.bottom);
@@ -195,7 +195,7 @@ export function ResultsChart({ stats, bpm }: ResultsChartProps) {
       ctx.moveTo(zeroX, padding.top);
       ctx.lineTo(zeroX, height - padding.bottom);
       ctx.stroke();
-      
+
       ctx.fillStyle = '#00ff88';
       ctx.font = 'bold 12px system-ui';
       ctx.textAlign = 'center';
@@ -250,12 +250,12 @@ export function ResultsChart({ stats, bpm }: ResultsChartProps) {
         </div>
       </div>
 
-      <canvas 
-        ref={canvasRef} 
+      <canvas
+        ref={canvasRef}
         className="chart-canvas"
         style={{ width: '100%', height: '300px' }}
       />
-      
+
       <div className="stats-summary">
         <div className="stat-item">
           <span className="stat-label">Offset</span>
@@ -293,32 +293,32 @@ export function ResultsChart({ stats, bpm }: ResultsChartProps) {
             <div className="info-tooltip">
               <h5>How Precision is Calculated</h5>
               <p>
-                This rating system comes from <strong>manufacturing and quality engineering</strong>, 
-                where it measures how consistently a machine can produce parts within specification. 
+                This rating system comes from <strong>manufacturing and quality engineering</strong>,
+                where it measures how consistently a machine can produce parts within specification.
                 We've adapted it for musical timing.
               </p>
               <h6>What is Cp?</h6>
               <p>
-                <strong>Cp</strong> (Process Capability Index) measures how well a process fits 
+                <strong>Cp</strong> (Process Capability Index) measures how well a process fits
                 within its tolerance limits:
               </p>
               <p className="formula">Cp = Tolerance ÷ (3 × σ)</p>
               <p>
-                We use a <strong>±25ms tolerance</strong> — the window where timing "feels" right. 
-                Cp measures how consistently you stay within this window. A higher Cp means tighter, 
+                We use a <strong>±25ms tolerance</strong> — the window where timing "feels" right.
+                Cp measures how consistently you stay within this window. A higher Cp means tighter,
                 more reliable timing.
               </p>
               <h6>Precision Levels</h6>
               <p>
-                These levels correspond to industry-standard Cp benchmarks. <strong>Scattered</strong> (σ &gt; 25ms, 
-                Cp &lt; 0.33) is "not capable". <strong>Loose</strong> (σ 12-25ms, Cp 0.33-0.67) is "poor". 
-                <strong>Steady</strong> (σ 8-12ms, Cp 0.67-1.0) is "marginal". <strong>Locked In</strong> (σ 6-8ms, 
-                Cp 1.0-1.33) is "capable" — the minimum standard in manufacturing. <strong>Diamond</strong> (σ 4-6ms, 
-                Cp 1.33-2.0) is "excellent" — required for critical parts. <strong>Atomic Clock</strong> (σ &lt; 4ms, 
+                These levels correspond to industry-standard Cp benchmarks. <strong>Scattered</strong> (σ &gt; 25ms,
+                Cp &lt; 0.33) is "not capable". <strong>Loose</strong> (σ 12-25ms, Cp 0.33-0.67) is "poor".
+                <strong>Steady</strong> (σ 8-12ms, Cp 0.67-1.0) is "marginal". <strong>Locked In</strong> (σ 6-8ms,
+                Cp 1.0-1.33) is "capable" — the minimum standard in manufacturing. <strong>Diamond</strong> (σ 4-6ms,
+                Cp 1.33-2.0) is "excellent" — required for critical parts. <strong>Atomic Clock</strong> (σ &lt; 4ms,
                 Cp &gt; 2.0) is "world class".
               </p>
               <p className="your-stats">
-                Your σ: <strong>{stats.standardDeviation.toFixed(1)}ms</strong> → 
+                Your σ: <strong>{stats.standardDeviation.toFixed(1)}ms</strong> →
                 Cp: <strong>{assessment.cp.toFixed(2)}</strong>
               </p>
             </div>
@@ -352,9 +352,17 @@ export function ResultsChart({ stats, bpm }: ResultsChartProps) {
               <span className="segment-value">σ &lt; 4ms</span>
             </div>
           </div>
-          <div 
-            className="scale-marker" 
-            style={{ left: `${Math.min(100, Math.max(0, (assessment.cp / 2.5) * 100))}%` }}
+          <div
+            className="scale-marker"
+            style={{
+              left: (() => {
+                const levels = ['scattered', 'loose', 'steady', 'locked_in', 'diamond', 'atomic_clock'];
+                const index = levels.indexOf(assessment.consistencyLevel);
+                if (index === -1) return '0%';
+                // Center of segment: (index + 0.5) * (100 / total_segments)%
+                return `${(index + 0.5) * (100 / 6)}%`;
+              })()
+            }}
           />
         </div>
       </div>
@@ -380,12 +388,12 @@ export function ResultsChart({ stats, bpm }: ResultsChartProps) {
             <span className="ruler-label extreme">Get Sleep</span>
           </div>
           <div className="ruler-bar">
-            <div 
+            <div
               className="ruler-marker"
-              style={{ 
+              style={{
                 // assessment.offsetMs: + = ahead (left), - = behind (right)
                 // Scale: +40ms = 0%, 0ms = 50%, -40ms = 100%
-                left: `${Math.max(0, Math.min(100, 50 - (assessment.offsetMs / 40) * 50))}%` 
+                left: `${Math.max(0, Math.min(100, 50 - (assessment.offsetMs / 40) * 50))}%`
               }}
             />
           </div>
