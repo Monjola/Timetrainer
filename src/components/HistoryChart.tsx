@@ -32,20 +32,29 @@ export function HistoryChart({ history }: HistoryChartProps) {
         ctx.fillRect(0, 0, width, height);
 
         // Y Axis Range (ms)
-        // We want to show Offset and Std Dev. Offset can be positive/negative.
-        // Let's determine the range.
+        // We want to show Offset and Std Dev. We keep it symmetrical around 0.
         const allValues = history.flatMap(s => [s.meanOffset, s.stdDev]);
-        const maxVal = Math.max(50, ...allValues.map(Math.abs)) * 1.2;
-        const minVal = Math.min(-50, ...history.map(s => s.meanOffset)) * 1.2;
+        const maxAbs = Math.max(...allValues.map(Math.abs));
+        const limit = Math.max(25, maxAbs * 1.1); // Minimum 25ms range for visibility
+        const minVal = -limit;
+        const maxVal = limit;
         const yRange = maxVal - minVal;
 
         const yToCanvas = (y: number) => padding.top + chartHeight - ((y - minVal) / yRange) * chartHeight;
         const xToCanvas = (index: number) => padding.left + (index / (history.length - 1)) * chartWidth;
 
-        // Grid lines (horizontal)
+        // Intelligent Grid lines (horizontal)
+        const gridSteps = [10, 25, 50, 100, 250, 500];
+        const step = gridSteps.find(s => s >= limit / 2.5) || 500;
+        const lines = [0];
+        for (let l = step; l <= limit; l += step) {
+            lines.push(l);
+            lines.push(-l);
+        }
+
         ctx.strokeStyle = '#1a1a2e';
         ctx.lineWidth = 1;
-        [minVal, 0, maxVal / 2, maxVal].forEach(val => {
+        lines.forEach(val => {
             const y = yToCanvas(val);
             ctx.beginPath();
             ctx.moveTo(padding.left, y);
@@ -55,10 +64,10 @@ export function HistoryChart({ history }: HistoryChartProps) {
             ctx.fillStyle = '#666';
             ctx.font = '10px system-ui';
             ctx.textAlign = 'right';
-            ctx.fillText(`${val.toFixed(0)}ms`, padding.left - 5, y + 3);
+            ctx.fillText(`${val > 0 ? '+' : ''}${val.toFixed(0)}ms`, padding.left - 5, y + 3);
         });
 
-        // Zero line
+        // Zero line (highlighted)
         const zeroY = yToCanvas(0);
         ctx.strokeStyle = '#333';
         ctx.lineWidth = 2;
