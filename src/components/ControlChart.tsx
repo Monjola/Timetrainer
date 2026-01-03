@@ -104,6 +104,27 @@ export function ControlChart({
         ctx.lineTo(width - padding.right, offsetToY(0));
         ctx.stroke();
 
+        // Reference Lines (±10ms, ±20ms, etc.)
+        const referenceLines = [-50, -40, -30, -20, -10, 10, 20, 30, 40, 50];
+        ctx.font = '9px monospace';
+        ctx.textAlign = 'right';
+
+        referenceLines.forEach(ms => {
+            if (Math.abs(ms) > maxOffset * 1.5) return; // Skip if out of view
+
+            const y = offsetToY(ms);
+
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.moveTo(padding.left, y);
+            ctx.lineTo(width - padding.right, y);
+            ctx.stroke();
+
+            // Label
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.fillText(`${ms > 0 ? '+' : ''}${ms}`, padding.left - 5, y + 3);
+        });
+
         // --- Draw Control Limits (Mean ± 3σ) ---
         if (stats.count > 1) {
             const meanY = offsetToY(stats.mean);

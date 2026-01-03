@@ -34,7 +34,7 @@ export function getDefaultSubdivisions(timeSignature: TimeSignature): number {
 export function createEmptyGrid(timeSignature: TimeSignature, subdivisionsPerBeat: number): DrumSoundType[][] {
   const beats = getBeatsPerMeasure(timeSignature);
   const totalSubdivisions = beats * subdivisionsPerBeat;
-  
+
   // Each subdivision can have multiple sounds layered
   return Array.from({ length: totalSubdivisions }, () => []);
 }
@@ -46,17 +46,17 @@ export function createDefaultPattern(timeSignature: TimeSignature): BeatPattern 
   const subdivisionsPerBeat = getDefaultSubdivisions(timeSignature);
   const beats = getBeatsPerMeasure(timeSignature);
   const grid = createEmptyGrid(timeSignature, subdivisionsPerBeat);
-  
+
   // Add accent on first beat, regular click on others
   for (let beat = 0; beat < beats; beat++) {
     const subdivisionIndex = beat * subdivisionsPerBeat;
     if (beat === 0) {
-      grid[subdivisionIndex] = ['hihat_open']; // Accent on 1
+      grid[subdivisionIndex] = ['click_high']; // Accent on 1
     } else {
-      grid[subdivisionIndex] = ['hihat_closed']; // Regular click
+      grid[subdivisionIndex] = ['click_low']; // Regular click
     }
   }
-  
+
   return {
     timeSignature,
     subdivisionsPerBeat,
@@ -68,22 +68,22 @@ export function createDefaultPattern(timeSignature: TimeSignature): BeatPattern 
  * Toggle a sound at a specific subdivision
  */
 export function toggleSound(
-  pattern: BeatPattern, 
-  subdivisionIndex: number, 
+  pattern: BeatPattern,
+  subdivisionIndex: number,
   sound: DrumSoundType
 ): BeatPattern {
   const newGrid = pattern.grid.map((sounds, i) => {
     if (i !== subdivisionIndex) return [...sounds];
-    
+
     // If sound is already there, remove it
     if (sounds.includes(sound)) {
       return sounds.filter(s => s !== sound);
     }
-    
+
     // Add the sound
     return [...sounds, sound];
   });
-  
+
   return { ...pattern, grid: newGrid };
 }
 

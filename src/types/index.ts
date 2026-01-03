@@ -141,3 +141,19 @@ export interface SkillAssessment {
   offsetMs: number;
 }
 
+export interface HistoricalSession {
+  id: string;
+  date: string; // ISO string
+  bpm: number;
+  durationBeats: number;
+  inputMethod: InputMethod;
+
+  // Results
+  meanOffset: number;
+  stdDev: number;
+  precisionRating: string; // consistencyTitle
+  timingFeel: string;      // offsetTitle
+
+  // Full session data for review
+  result?: SessionResult;
+}
