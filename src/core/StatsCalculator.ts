@@ -31,7 +31,7 @@ export class StatsCalculator {
 
     // First pass: get raw values and initial stats for outlier detection
     const rawValues = offsets.map(o => o.offsetMs);
-    
+
     // Filter outliers if we have enough data
     const filteredValues = this.filterOutliers(rawValues);
 
@@ -67,7 +67,7 @@ export class StatsCalculator {
 
     // Filter values within ±4σ
     const threshold = this.OUTLIER_THRESHOLD_SIGMA * initialStdDev;
-    const filtered = values.filter(v => 
+    const filtered = values.filter(v =>
       Math.abs(v - initialMean) <= threshold
     );
 
@@ -88,12 +88,12 @@ export class StatsCalculator {
 
     const minVal = min(values);
     const maxVal = max(values);
-    
+
     // Ensure we have a reasonable range (at least ±50ms if data is very tight)
     const dataRange = maxVal - minVal;
     const displayRange = Math.max(dataRange, 100);
     const center = (minVal + maxVal) / 2;
-    
+
     const rangeMin = center - displayRange / 2;
     const rangeMax = center + displayRange / 2;
     const binWidth = (rangeMax - rangeMin) / binCount;
@@ -127,7 +127,7 @@ export class StatsCalculator {
    */
   static normalPDF(x: number, mean: number, stdDev: number): number {
     if (stdDev === 0) return x === mean ? 1 : 0;
-    
+
     const exponent = -Math.pow(x - mean, 2) / (2 * Math.pow(stdDev, 2));
     return (1 / (stdDev * Math.sqrt(2 * Math.PI))) * Math.exp(exponent);
   }
@@ -136,10 +136,10 @@ export class StatsCalculator {
    * Generate points for plotting the normal distribution curve
    */
   static generateNormalCurve(
-    mean: number, 
-    stdDev: number, 
-    minX: number, 
-    maxX: number, 
+    mean: number,
+    stdDev: number,
+    minX: number,
+    maxX: number,
     pointCount: number = 100
   ): Array<{ x: number; y: number }> {
     const points: Array<{ x: number; y: number }> = [];
@@ -238,11 +238,11 @@ export class StatsCalculator {
     }
 
     const { standardDeviation: sigma, mean: offset } = stats;
-    
+
     // Calculate Cp (Process Capability Index)
     // Cp = Tolerance / (3 * σ) = 25 / (3 * σ)
     const cp = sigma > 0 ? TOLERANCE_MS / (3 * sigma) : 10; // Cap at 10 if σ is 0
-    
+
     // Sigma level for display purposes (how many σ fit in tolerance)
     const sigmaLevel = sigma > 0 ? TOLERANCE_MS / sigma : 10;
 
@@ -293,15 +293,15 @@ export class StatsCalculator {
     // Determine offset feel (unchanged logic)
     const displayOffset = -offset; // Flip for display: early becomes +, late becomes -
     const absOffset = Math.abs(offset);
-    
+
     let offsetFeel: OffsetFeel;
     let offsetTitle: string;
     let offsetDescription: string;
 
     if (absOffset <= 5) {
-      offsetFeel = 'in_the_pocket';
-      offsetTitle = 'In the Pocket';
-      offsetDescription = 'Right where it feels good. Perfect placement.';
+      offsetFeel = 'dead_center';
+      offsetTitle = 'Dead Center';
+      offsetDescription = 'Bullseye! Perfect alignment with the beat.';
     } else if (absOffset <= 10) {
       if (offset < 0) {
         offsetFeel = 'snap';
@@ -318,9 +318,9 @@ export class StatsCalculator {
         offsetTitle = 'Drive';
         offsetDescription = 'Pushing forward - creates momentum and excitement.';
       } else {
-        offsetFeel = 'dragging';
-        offsetTitle = 'Dragging';
-        offsetDescription = 'Behind the beat - may feel sluggish.';
+        offsetFeel = 'in_the_pocket';
+        offsetTitle = 'In the Pocket';
+        offsetDescription = 'Deep pocket - heavy, confident feel.';
       }
     } else if (absOffset <= 40) {
       if (offset < 0) {

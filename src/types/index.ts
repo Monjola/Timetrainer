@@ -7,11 +7,11 @@ export type MetronomeSoundType = 'click' | 'beep' | 'wood' | 'hihat';
 export type TimeSignature = '4/4' | '3/4' | '6/8';
 
 // Sounds for pattern programming
-export type DrumSoundType = 
+export type DrumSoundType =
   // Drums
-  | 'kick' 
-  | 'snare' 
-  | 'hihat_closed' 
+  | 'kick'
+  | 'snare'
+  | 'hihat_closed'
   | 'hihat_open'
   | 'tom_high'
   | 'tom_low'
@@ -107,7 +107,7 @@ export interface InputCallbacks {
 // Skill level assessment types - Six Sigma based
 export type SigmaLevel = 1 | 2 | 3 | 4 | 5 | 6;
 
-export type ConsistencyLevel = 
+export type ConsistencyLevel =
   | 'scattered'      // < 1 sigma
   | 'loose'          // 1-2 sigma
   | 'steady'         // 2-3 sigma
@@ -115,7 +115,8 @@ export type ConsistencyLevel =
   | 'diamond'        // 4-5 sigma
   | 'atomic_clock';  // 5-6+ sigma
 
-export type OffsetFeel = 
+export type OffsetFeel =
+  | 'dead_center'
   | 'in_the_pocket'
   | 'groove'
   | 'snap'
@@ -132,7 +133,7 @@ export interface SkillAssessment {
   sigmaLevel: number;        // Actual sigma level (can be fractional)
   cp: number;                // Process capability index
   consistencyDescription: string;
-  
+
   // Offset (timing feel)
   offsetFeel: OffsetFeel;
   offsetTitle: string;

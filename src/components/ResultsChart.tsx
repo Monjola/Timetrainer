@@ -378,14 +378,17 @@ export function ResultsChart({ stats, bpm }: ResultsChartProps) {
         <p className="scale-description">{assessment.offsetDescription}</p>
         <div className="offset-ruler">
           <div className="ruler-labels">
-            <span className="ruler-label extreme">Day Job</span>
-            <span className="ruler-label">Nervous</span>
-            <span className="ruler-label">Drive</span>
-            <span className="ruler-label good">Snap</span>
-            <span className="ruler-label center">Groove</span>
-            <span className="ruler-label good">Pocket</span>
-            <span className="ruler-label">Dragging</span>
-            <span className="ruler-label extreme">Get Sleep</span>
+            <div className="ruler-labels">
+              <span className="ruler-label extreme">Day Job</span>
+              <span className="ruler-label">Nervous</span>
+              <span className="ruler-label">Drive</span>
+              <span className="ruler-label good">Snap</span>
+              <span className="ruler-label center">Dead Center</span>
+              <span className="ruler-label good">Groove</span>
+              <span className="ruler-label good">Pocket</span>
+              <span className="ruler-label">Dragging</span>
+              <span className="ruler-label extreme">Get Sleep</span>
+            </div>
           </div>
           <div className="ruler-bar">
             <div
