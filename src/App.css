@@ -1273,11 +1273,12 @@ section h2 {
 }
 
 .ruler-labels {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.6rem;
+  position: relative;
+  height: 20px;
+  font-size: 0.55rem;
   color: var(--text-muted);
   text-transform: uppercase;
+  margin-bottom: 4px;
 }
 
 .ruler-label.good {

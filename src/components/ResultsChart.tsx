@@ -378,17 +378,25 @@ export function ResultsChart({ stats, bpm }: ResultsChartProps) {
         <p className="scale-description">{assessment.offsetDescription}</p>
         <div className="offset-ruler">
           <div className="ruler-labels">
-            <div className="ruler-labels">
-              <span className="ruler-label extreme">Day Job</span>
-              <span className="ruler-label">Nervous</span>
-              <span className="ruler-label">Drive</span>
-              <span className="ruler-label good">Snap</span>
-              <span className="ruler-label center">Dead Center</span>
-              <span className="ruler-label good">Groove</span>
-              <span className="ruler-label good">Pocket</span>
-              <span className="ruler-label">Dragging</span>
-              <span className="ruler-label extreme">Get Sleep</span>
-            </div>
+            {[
+              { text: 'Day Job', left: '5%', cls: 'extreme' },
+              { text: 'Nervous', left: '16.5%', cls: '' },
+              { text: 'Drive', left: '27.5%', cls: '' },
+              { text: 'Snap', left: '38.5%', cls: 'good' },
+              { text: 'Dead Center', left: '50%', cls: 'center' },
+              { text: 'Groove', left: '61.5%', cls: 'good' },
+              { text: 'Pocket', left: '72.5%', cls: 'good' },
+              { text: 'Dragging', left: '83.5%', cls: '' },
+              { text: 'Get Sleep', left: '95%', cls: 'extreme' },
+            ].map(label => (
+              <span
+                key={label.text}
+                className={`ruler-label ${label.cls}`}
+                style={{ left: label.left, position: 'absolute', transform: 'translateX(-50%)' }}
+              >
+                {label.text}
+              </span>
+            ))}
           </div>
           <div className="ruler-bar">
             <div
