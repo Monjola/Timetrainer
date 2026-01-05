@@ -67,6 +67,7 @@ export interface SessionConfig {
 
 export interface TimingOffset {
   beatIndex: number;
+  subdivisionIndex: number;
   offsetMs: number; // Negative = early (pushing), Positive = late (dragging)
   timestamp: number; // AudioContext time when input was detected
   expectedTime: number; // AudioContext time when beat was expected (with latency compensation)

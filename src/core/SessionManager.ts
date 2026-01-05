@@ -131,6 +131,7 @@ export class SessionManager {
 
     // Find the closest beat to this input
     let closestBeat = -1;
+    let closestSubdivision = -1;
     let closestOffset = Infinity;
     let closestExpectedTime = 0;
 
@@ -142,7 +143,9 @@ export class SessionManager {
 
       // Only consider targets within the matching window
       if (absOffset < windowSeconds && absOffset < Math.abs(closestOffset)) {
-        closestBeat = parseInt(targetId.split('_')[0]);
+        const parts = targetId.split('_');
+        closestBeat = parseInt(parts[0]);
+        closestSubdivision = parseInt(parts[1]);
         closestOffset = offset;
         closestExpectedTime = expectedTime;
       }
@@ -152,6 +155,7 @@ export class SessionManager {
     if (closestBeat >= 0) {
       const timingOffset: TimingOffset = {
         beatIndex: closestBeat,
+        subdivisionIndex: closestSubdivision,
         offsetMs: closestOffset * 1000, // Convert to milliseconds
         timestamp: audioContextTime,
         expectedTime: closestExpectedTime
