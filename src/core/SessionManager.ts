@@ -5,12 +5,12 @@
  * collects timing offsets, and manages session state.
  */
 
-import type { 
-  SessionConfig, 
-  SessionResult, 
-  SessionState, 
+import type {
+  SessionConfig,
+  SessionResult,
+  SessionState,
   TimingOffset,
-  InputMethod 
+  InputMethod
 } from '../types';
 import { metronomeEngine } from './MetronomeEngine';
 import { inputHandler } from './InputHandler';
@@ -28,7 +28,7 @@ export class SessionManager {
   private callbacks: SessionManagerCallbacks | null = null;
   private state: SessionState = 'idle';
   private offsets: TimingOffset[] = [];
-  private beatTimes: Map<number, number> = new Map(); // beatIndex -> expectedInputTime
+  private targetTimes: Map<string, number> = new Map(); // "measure_subdiv" -> expectedInputTime
   private startTime: number = 0;
   private currentBeat: number = -1;
   private isInCountIn: boolean = false;
@@ -44,7 +44,7 @@ export class SessionManager {
   async start(config: SessionConfig): Promise<void> {
     this.config = config;
     this.offsets = [];
-    this.beatTimes.clear();
+    this.targetTimes.clear();
     this.currentBeat = -1;
     this.isInCountIn = true;
 
@@ -71,14 +71,18 @@ export class SessionManager {
       onCountIn: (current, total) => {
         this.callbacks?.onCountIn(current, total);
       },
-      onBeat: (beatIndex, _scheduledTime, expectedInputTime) => {
+      onBeat: (beatIndex) => {
         // First beat after count-in - transition to running state
         if (this.isInCountIn) {
           this.isInCountIn = false;
           this.setState('running');
           this.startTime = metronomeEngine.getAudioContext()!.currentTime;
         }
-        this.handleBeat(beatIndex, expectedInputTime);
+        this.handleBeat(beatIndex);
+      },
+      onSubdivision: (subdivisionIndex, _scheduledTime, expectedInputTime) => {
+        if (this.isInCountIn) return;
+        this.handleSubdivision(subdivisionIndex, expectedInputTime);
       },
       onComplete: () => {
         this.complete();
@@ -90,25 +94,35 @@ export class SessionManager {
     // Set state first to prevent the stop button click from being registered as input
     // (handleInput checks this.state !== 'running')
     this.state = 'finished';
-    
+
     metronomeEngine.stop();
     inputHandler.stopListening();
     this.complete();
   }
 
-  private handleBeat(beatIndex: number, expectedInputTime: number): void {
+  private handleBeat(beatIndex: number): void {
     this.currentBeat = beatIndex;
-    this.beatTimes.set(beatIndex, expectedInputTime);
+    this.callbacks?.onBeat(beatIndex);
+  }
 
-    // Clean up old beat times (keep last few for matching)
-    const minBeatToKeep = Math.max(0, beatIndex - 5);
-    for (const [beat] of this.beatTimes) {
-      if (beat < minBeatToKeep) {
-        this.beatTimes.delete(beat);
+  private handleSubdivision(subdivisionIndex: number, expectedInputTime: number): void {
+    if (!this.config) return;
+
+    // Check if this subdivision is a target note
+    if (this.config.targetSubdivisions.includes(subdivisionIndex)) {
+      // Use currentBeat and subdivisionIndex as a unique key for this target
+      const targetId = `${this.currentBeat}_${subdivisionIndex}`;
+      this.targetTimes.set(targetId, expectedInputTime);
+
+      // Clean up old target times (keep last few beats worth)
+      // We want to keep enough history to match late hits
+      const cleanupThreshold = (this.currentBeat - 2).toString();
+      for (const [key] of this.targetTimes) {
+        if (key.split('_')[0] < cleanupThreshold) {
+          this.targetTimes.delete(key);
+        }
       }
     }
-
-    this.callbacks?.onBeat(beatIndex);
   }
 
   private handleInput(audioContextTime: number, _method: InputMethod): void {
@@ -122,19 +136,19 @@ export class SessionManager {
 
     const windowSeconds = this.BEAT_MATCH_WINDOW_MS / 1000;
 
-    for (const [beatIndex, expectedTime] of this.beatTimes) {
+    for (const [targetId, expectedTime] of this.targetTimes) {
       const offset = audioContextTime - expectedTime;
       const absOffset = Math.abs(offset);
 
-      // Only consider beats within the matching window
+      // Only consider targets within the matching window
       if (absOffset < windowSeconds && absOffset < Math.abs(closestOffset)) {
-        closestBeat = beatIndex;
+        closestBeat = parseInt(targetId.split('_')[0]);
         closestOffset = offset;
         closestExpectedTime = expectedTime;
       }
     }
 
-    // If we found a matching beat, record the offset
+    // If we found a matching target, record the offset
     if (closestBeat >= 0) {
       const timingOffset: TimingOffset = {
         beatIndex: closestBeat,
@@ -146,8 +160,14 @@ export class SessionManager {
       this.offsets.push(timingOffset);
       this.callbacks?.onInput(timingOffset);
 
-      // Remove this beat from the map to prevent double-counting
-      this.beatTimes.delete(closestBeat);
+      // Find and remove the specific target that was matched
+      // Identify the targetId again
+      for (const [targetId, expectedTime] of this.targetTimes) {
+        if (expectedTime === closestExpectedTime) {
+          this.targetTimes.delete(targetId);
+          break;
+        }
+      }
     }
   }
 
@@ -186,7 +206,7 @@ export class SessionManager {
   reset(): void {
     this.state = 'idle';
     this.offsets = [];
-    this.beatTimes.clear();
+    this.targetTimes.clear();
     this.currentBeat = -1;
     this.callbacks?.onStateChange('idle');
   }

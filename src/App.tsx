@@ -32,7 +32,8 @@ function App() {
     inputMethod: 'keyboard',
     metronomeSound: 'click',
     tapSound: 'wood_high',
-    beatPattern: createDefaultPattern('4/4')
+    beatPattern: createDefaultPattern('4/4'),
+    targetSubdivisions: [0, 4, 8, 12] // Default to quarter notes
   });
 
   // Session state

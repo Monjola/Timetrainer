@@ -61,6 +61,8 @@ export interface SessionConfig {
   tapSound: TapSoundType;
   // New: beat pattern for metronome
   beatPattern: BeatPattern;
+  // New: indices of subdivisions in a measure that are target notes
+  targetSubdivisions: number[];
 }
 
 export interface TimingOffset {

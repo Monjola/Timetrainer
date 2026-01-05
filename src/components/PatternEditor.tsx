@@ -7,8 +7,9 @@
  * - Drum sounds (kick, snare, hi-hat)
  */
 
-// import { useState } from 'react';
+import React from 'react';
 import type { BeatPattern, TimeSignature, DrumSoundType, PatternPreset } from '../types';
+import { metronomeEngine } from '../core/MetronomeEngine';
 import {
   getBeatsPerMeasure,
   toggleSound,
@@ -25,6 +26,9 @@ interface PatternEditorProps {
   isPreviewing: boolean;
   onPreviewToggle: () => void;
 }
+
+// Sound options...
+// ... (omitting sound options for brevity in logic but they stay)
 
 // Sound categories for track selection
 interface SoundOption {
@@ -60,7 +64,15 @@ const ALL_SOUNDS: SoundOption[] = [
 
 export { ALL_SOUNDS };
 
-export function PatternEditor({ pattern, onChange, disabled, bpm: _bpm, isPreviewing, onPreviewToggle }: PatternEditorProps) {
+export function PatternEditor({ pattern, onChange, disabled, bpm, isPreviewing, onPreviewToggle }: PatternEditorProps) {
+  // Update running preview when pattern or bpm changes
+  React.useEffect(() => {
+    if (isPreviewing) {
+      metronomeEngine.updatePreviewPattern(pattern);
+      metronomeEngine.updatePreviewBpm(bpm);
+    }
+  }, [pattern, bpm, isPreviewing]);
+
   const beatsPerMeasure = getBeatsPerMeasure(pattern.timeSignature);
   const totalSubdivisions = beatsPerMeasure * pattern.subdivisionsPerBeat;
 
@@ -226,7 +238,7 @@ export function PatternEditor({ pattern, onChange, disabled, bpm: _bpm, isPrevie
                       key={subdivIndex}
                       className={`pattern-cell ${isActive ? 'active' : ''} ${onBeat ? 'on-beat' : 'off-beat'} ${track.sound}`}
                       onClick={() => handleCellClick(subdivIndex, track.sound)}
-                      disabled={disabled || isPreviewing}
+                      disabled={disabled}
                     />
                   );
                 })}

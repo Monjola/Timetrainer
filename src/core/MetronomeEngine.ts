@@ -17,6 +17,7 @@ export interface MetronomeConfig {
   beatPattern: BeatPattern; // The pattern to play
   onCountIn: (countInBeat: number, totalCountIn: number) => void; // Called during count-in
   onBeat: (beatIndex: number, scheduledTime: number, expectedInputTime: number) => void;
+  onSubdivision: (subdivisionIndex: number, scheduledTime: number, expectedInputTime: number) => void;
   onComplete: () => void;
 }
 
@@ -48,12 +49,12 @@ export class MetronomeEngine {
     if (!this.audioContext) {
       this.audioContext = new AudioContext({ latencyHint: 'interactive' });
     }
-    
+
     // Resume if suspended (browsers require user interaction)
     if (this.audioContext.state === 'suspended') {
       await this.audioContext.resume();
     }
-    
+
     return this.audioContext;
   }
 
@@ -94,10 +95,10 @@ export class MetronomeEngine {
     this.countInBeat = 0;
     this.isInCountIn = config.countInBeats > 0;
     this.isRunning = true;
-    
+
     // Start first subdivision slightly in the future to allow scheduling
     this.nextSubdivisionTime = this.audioContext.currentTime + 0.1;
-    
+
     // Start the scheduler
     this.schedulerInterval = window.setInterval(() => {
       this.scheduler();
@@ -108,7 +109,7 @@ export class MetronomeEngine {
     this.isRunning = false;
     this.isPreviewMode = false;
     this.previewPattern = null;
-    
+
     if (this.schedulerInterval !== null) {
       clearInterval(this.schedulerInterval);
       this.schedulerInterval = null;
@@ -131,10 +132,10 @@ export class MetronomeEngine {
     this.currentSubdivision = 0;
     this.isPreviewMode = true;
     this.isRunning = true;
-    
+
     // Start first subdivision slightly in the future
     this.nextSubdivisionTime = this.audioContext.currentTime + 0.1;
-    
+
     // Start the scheduler
     this.schedulerInterval = window.setInterval(() => {
       this.previewScheduler();
@@ -147,6 +148,24 @@ export class MetronomeEngine {
   stopPreview(): void {
     if (this.isPreviewMode) {
       this.stop();
+    }
+  }
+
+  /**
+   * Update the preview pattern without stopping
+   */
+  updatePreviewPattern(pattern: BeatPattern): void {
+    if (this.isPreviewMode) {
+      this.previewPattern = pattern;
+    }
+  }
+
+  /**
+   * Update the preview BPM without stopping
+   */
+  updatePreviewBpm(bpm: number): void {
+    if (this.isPreviewMode) {
+      this.previewBpm = bpm;
     }
   }
 
@@ -167,7 +186,7 @@ export class MetronomeEngine {
     const pattern = this.previewPattern;
     const beatsPerMeasure = getBeatsPerMeasure(pattern.timeSignature);
     const totalSubdivisionsPerMeasure = beatsPerMeasure * pattern.subdivisionsPerBeat;
-    
+
     // Calculate subdivision duration
     const beatDuration = 60 / this.previewBpm;
     const subdivisionDuration = beatDuration / pattern.subdivisionsPerBeat;
@@ -176,10 +195,10 @@ export class MetronomeEngine {
     while (this.nextSubdivisionTime < currentTime + this.SCHEDULE_AHEAD_TIME) {
       // Wrap subdivision index for looping
       const patternSubdivision = this.currentSubdivision % totalSubdivisionsPerMeasure;
-      
+
       // Get sounds to play at this subdivision
       const sounds = pattern.grid[patternSubdivision] || [];
-      
+
       // Schedule all sounds for this subdivision
       for (const sound of sounds) {
         this.scheduleDrumSound(this.nextSubdivisionTime, sound);
@@ -197,11 +216,14 @@ export class MetronomeEngine {
     const currentTime = this.audioContext.currentTime;
     const pattern = this.config.beatPattern;
     const beatsPerMeasure = getBeatsPerMeasure(pattern.timeSignature);
-    const totalSubdivisionsPerMeasure = beatsPerMeasure * pattern.subdivisionsPerBeat;
-    
-    // Calculate subdivision duration
+    // For accuracy measurement, we always schedule at 16th note resolution (4 per beat)
+    // even if the audible pattern uses fewer subdivisions.
+    const schedulingSubdivisionsPerBeat = 4;
+    const totalSubdivisionsPerMeasure = beatsPerMeasure * schedulingSubdivisionsPerBeat;
+
+    // Calculate subdivision duration based on scheduling resolution
     const beatDuration = 60 / this.config.bpm;
-    const subdivisionDuration = beatDuration / pattern.subdivisionsPerBeat;
+    const subdivisionDuration = beatDuration / schedulingSubdivisionsPerBeat;
 
     // Schedule all subdivisions that fall within our lookahead window
     while (this.nextSubdivisionTime < currentTime + this.SCHEDULE_AHEAD_TIME) {
@@ -209,13 +231,13 @@ export class MetronomeEngine {
       if (this.isInCountIn) {
         // Schedule count-in click (accent sound)
         this.scheduleClick(this.nextSubdivisionTime, true);
-        
+
         // Notify count-in callback
         this.config.onCountIn(this.countInBeat + 1, this.config.countInBeats);
-        
+
         this.countInBeat++;
         this.nextSubdivisionTime += beatDuration; // Count-in is per beat, not subdivision
-        
+
         // Check if count-in is complete
         if (this.countInBeat >= this.config.countInBeats) {
           this.isInCountIn = false;
@@ -230,27 +252,38 @@ export class MetronomeEngine {
         return;
       }
 
-      // Get subdivision index within the pattern (wraps around)
-      const patternSubdivision = this.currentSubdivision % totalSubdivisionsPerMeasure;
-      
-      // Get sounds to play at this subdivision
-      const sounds = pattern.grid[patternSubdivision] || [];
-      
-      // Schedule all sounds for this subdivision
-      for (const sound of sounds) {
-        this.scheduleDrumSound(this.nextSubdivisionTime, sound);
+      // Get scheduling subdivision index (0-15 for 4/4)
+      const schedulingSubdivision = this.currentSubdivision % totalSubdivisionsPerMeasure;
+
+      // Map scheduling subdivision back to pattern subdivision to play sounds
+      // Example: If scheduling is 4 (16ths) and pattern is 2 (8ths)
+      // schedule 0 -> pattern 0
+      // schedule 1 -> no pattern sound
+      // schedule 2 -> pattern 1
+      const patternRatio = schedulingSubdivisionsPerBeat / pattern.subdivisionsPerBeat;
+      const isPatternTick = schedulingSubdivision % patternRatio === 0;
+
+      if (isPatternTick) {
+        const patternSubdivision = Math.floor(schedulingSubdivision / patternRatio);
+        const sounds = pattern.grid[patternSubdivision] || [];
+        for (const sound of sounds) {
+          this.scheduleDrumSound(this.nextSubdivisionTime, sound);
+        }
       }
 
-      // Check if this subdivision is on a beat (for beat callbacks)
-      const isOnBeat = this.currentSubdivision % pattern.subdivisionsPerBeat === 0;
-      
-      if (isOnBeat) {
-        // Calculate when the user will actually hear this beat (with latency compensation)
-        const expectedInputTime = this.nextSubdivisionTime + this.getOutputLatency();
+      // Calculate when the user will actually hear this subdivision (with latency compensation)
+      const expectedInputTime = this.nextSubdivisionTime + this.getOutputLatency();
 
+      // Notify subdivision callback (always at scheduling resolution)
+      this.config.onSubdivision(schedulingSubdivision, this.nextSubdivisionTime, expectedInputTime);
+
+      // Check if this subdivision is on a beat (for beat callbacks)
+      const isOnBeat = schedulingSubdivision % schedulingSubdivisionsPerBeat === 0;
+
+      if (isOnBeat) {
         // Notify beat callback
         this.config.onBeat(this.currentBeat, this.nextSubdivisionTime, expectedInputTime);
-        
+
         // Increment beat counter
         this.currentBeat++;
       }
@@ -342,7 +375,7 @@ export class MetronomeEngine {
     const bufferSize = this.audioContext.sampleRate * 0.05;
     const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
     const data = buffer.getChannelData(0);
-    
+
     for (let i = 0; i < bufferSize; i++) {
       data[i] = Math.random() * 2 - 1;
     }
@@ -356,7 +389,7 @@ export class MetronomeEngine {
     filter.frequency.value = isAccent ? 8000 : 10000;
 
     const gain = this.audioContext.createGain();
-    
+
     noise.connect(filter);
     filter.connect(gain);
     gain.connect(this.audioContext.destination);
@@ -448,7 +481,7 @@ export class MetronomeEngine {
     // Main body oscillator
     const osc = this.audioContext.createOscillator();
     const gain = this.audioContext.createGain();
-    
+
     osc.connect(gain);
     gain.connect(this.audioContext.destination);
 
@@ -469,13 +502,13 @@ export class MetronomeEngine {
     const clickGain = this.audioContext.createGain();
     click.connect(clickGain);
     clickGain.connect(this.audioContext.destination);
-    
+
     click.frequency.value = 800;
     click.type = 'triangle';
-    
+
     clickGain.gain.setValueAtTime(0.3, time);
     clickGain.gain.exponentialRampToValueAtTime(0.001, time + 0.02);
-    
+
     click.start(time);
     click.stop(time + 0.02);
   }
@@ -490,7 +523,7 @@ export class MetronomeEngine {
     const bufferSize = this.audioContext.sampleRate * 0.15;
     const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
     const data = buffer.getChannelData(0);
-    
+
     for (let i = 0; i < bufferSize; i++) {
       data[i] = Math.random() * 2 - 1;
     }
@@ -504,7 +537,7 @@ export class MetronomeEngine {
     noiseFilter.Q.value = 1;
 
     const noiseGain = this.audioContext.createGain();
-    
+
     noise.connect(noiseFilter);
     noiseFilter.connect(noiseGain);
     noiseGain.connect(this.audioContext.destination);
@@ -518,7 +551,7 @@ export class MetronomeEngine {
     // Body (tonal component)
     const body = this.audioContext.createOscillator();
     const bodyGain = this.audioContext.createGain();
-    
+
     body.connect(bodyGain);
     bodyGain.connect(this.audioContext.destination);
 
@@ -542,7 +575,7 @@ export class MetronomeEngine {
     const bufferSize = this.audioContext.sampleRate * 0.05;
     const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
     const data = buffer.getChannelData(0);
-    
+
     for (let i = 0; i < bufferSize; i++) {
       data[i] = Math.random() * 2 - 1;
     }
@@ -555,7 +588,7 @@ export class MetronomeEngine {
     filter.frequency.value = 7000;
 
     const gain = this.audioContext.createGain();
-    
+
     noise.connect(filter);
     filter.connect(gain);
     gain.connect(this.audioContext.destination);
@@ -576,7 +609,7 @@ export class MetronomeEngine {
     const bufferSize = this.audioContext.sampleRate * 0.2;
     const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
     const data = buffer.getChannelData(0);
-    
+
     for (let i = 0; i < bufferSize; i++) {
       data[i] = Math.random() * 2 - 1;
     }
@@ -589,7 +622,7 @@ export class MetronomeEngine {
     filter.frequency.value = 6000;
 
     const gain = this.audioContext.createGain();
-    
+
     noise.connect(filter);
     filter.connect(gain);
     gain.connect(this.audioContext.destination);
@@ -609,7 +642,7 @@ export class MetronomeEngine {
 
     const osc = this.audioContext.createOscillator();
     const gain = this.audioContext.createGain();
-    
+
     osc.connect(gain);
     gain.connect(this.audioContext.destination);
 
@@ -633,7 +666,7 @@ export class MetronomeEngine {
     const bufferSize = this.audioContext.sampleRate * 0.8;
     const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
     const data = buffer.getChannelData(0);
-    
+
     for (let i = 0; i < bufferSize; i++) {
       data[i] = Math.random() * 2 - 1;
     }
@@ -646,7 +679,7 @@ export class MetronomeEngine {
     filter.frequency.value = 4000;
 
     const gain = this.audioContext.createGain();
-    
+
     noise.connect(filter);
     filter.connect(gain);
     gain.connect(this.audioContext.destination);
@@ -667,7 +700,7 @@ export class MetronomeEngine {
     const bufferSize = this.audioContext.sampleRate * 0.3;
     const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
     const data = buffer.getChannelData(0);
-    
+
     for (let i = 0; i < bufferSize; i++) {
       data[i] = Math.random() * 2 - 1;
     }
@@ -681,7 +714,7 @@ export class MetronomeEngine {
     filter.Q.value = 2;
 
     const gain = this.audioContext.createGain();
-    
+
     noise.connect(filter);
     filter.connect(gain);
     gain.connect(this.audioContext.destination);
@@ -701,7 +734,7 @@ export class MetronomeEngine {
 
     const osc = this.audioContext.createOscillator();
     const gain = this.audioContext.createGain();
-    
+
     osc.connect(gain);
     gain.connect(this.audioContext.destination);
 
@@ -724,7 +757,7 @@ export class MetronomeEngine {
 
     const osc = this.audioContext.createOscillator();
     const gain = this.audioContext.createGain();
-    
+
     osc.connect(gain);
     gain.connect(this.audioContext.destination);
 
@@ -747,7 +780,7 @@ export class MetronomeEngine {
 
     const osc = this.audioContext.createOscillator();
     const gain = this.audioContext.createGain();
-    
+
     osc.connect(gain);
     gain.connect(this.audioContext.destination);
 
@@ -771,7 +804,7 @@ export class MetronomeEngine {
 
     const osc = this.audioContext.createOscillator();
     const gain = this.audioContext.createGain();
-    
+
     osc.connect(gain);
     gain.connect(this.audioContext.destination);
 
@@ -782,7 +815,7 @@ export class MetronomeEngine {
     const filter = this.audioContext.createBiquadFilter();
     filter.type = 'lowpass';
     filter.frequency.value = 400;
-    
+
     osc.disconnect();
     osc.connect(filter);
     filter.connect(gain);
@@ -804,7 +837,7 @@ export class MetronomeEngine {
     const osc1 = this.audioContext.createOscillator();
     const osc2 = this.audioContext.createOscillator();
     const gain = this.audioContext.createGain();
-    
+
     osc1.connect(gain);
     osc2.connect(gain);
     gain.connect(this.audioContext.destination);
@@ -834,7 +867,7 @@ export class MetronomeEngine {
       const bufferSize = this.audioContext.sampleRate * 0.02;
       const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
       const data = buffer.getChannelData(0);
-      
+
       for (let j = 0; j < bufferSize; j++) {
         data[j] = Math.random() * 2 - 1;
       }
@@ -848,7 +881,7 @@ export class MetronomeEngine {
       filter.Q.value = 1;
 
       const gain = this.audioContext.createGain();
-      
+
       noise.connect(filter);
       filter.connect(gain);
       gain.connect(this.audioContext.destination);
@@ -880,10 +913,10 @@ export class MetronomeEngine {
    */
   performanceTimeToAudioTime(performanceTime: number): number {
     if (!this.audioContext) return 0;
-    
+
     const now = performance.now();
     const audioNow = this.audioContext.currentTime;
-    
+
     // Calculate the offset and convert to AudioContext time
     const offsetMs = now - performanceTime;
     return audioNow - (offsetMs / 1000);

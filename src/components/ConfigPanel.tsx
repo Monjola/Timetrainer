@@ -4,7 +4,8 @@
 
 import type { InputMethod, SessionConfig, TapSoundType, BeatPattern } from '../types';
 import { InputHandler } from '../core/InputHandler';
-import { PatternEditor, ALL_SOUNDS } from './PatternEditor';
+import { PatternEditor } from './PatternEditor';
+import { Yardstick } from './Yardstick';
 
 interface ConfigPanelProps {
   config: SessionConfig;
@@ -53,14 +54,14 @@ export function ConfigPanel({
     onChange({ ...config, beatPattern: pattern });
   };
 
+  const handleTargetSubdivisionsChange = (targets: number[]) => {
+    onChange({ ...config, targetSubdivisions: targets });
+  };
+
   const getDurationInSeconds = () => {
     return ((config.durationBeats / config.bpm) * 60).toFixed(1);
   };
 
-  // Get tap sound info
-  const getCurrentTapSound = () => {
-    return ALL_SOUNDS.find(s => s.sound === config.tapSound);
-  };
 
   return (
     <div className="config-panel">
@@ -86,6 +87,19 @@ export function ConfigPanel({
             className="number-input"
           />
         </div>
+      </div>
+
+      <div className="config-section">
+        <label>Yardstick of Time (Target Notes)</label>
+        <Yardstick
+          targetSubdivisions={config.targetSubdivisions}
+          onChange={handleTargetSubdivisionsChange}
+          beatPattern={config.beatPattern}
+          bpm={config.bpm}
+          disabled={disabled}
+          tapSound={config.tapSound}
+          onTapSoundChange={handleTapSoundChange}
+        />
       </div>
 
       <div className="config-section">
@@ -160,51 +174,6 @@ export function ConfigPanel({
         />
       </div>
 
-      {/* Tap Sound (only for keyboard/MIDI) */}
-      {config.inputMethod !== 'audio' && (
-        <div className="config-section sound-settings">
-          <div className="sound-row">
-            <label>Tap Sound</label>
-            <div className="tap-sound-selector">
-              <div className="current-tap-sound">
-                {getCurrentTapSound() && (
-                  <>
-                    <span className="sound-name">{getCurrentTapSound()?.label}</span>
-                  </>
-                )}
-              </div>
-              <select
-                className="tap-sound-select"
-                value={config.tapSound}
-                onChange={(e) => handleTapSoundChange(e.target.value as TapSoundType)}
-                disabled={disabled}
-              >
-                <optgroup label="Drums">
-                  {ALL_SOUNDS.filter(s => s.category === 'drums').map(sound => (
-                    <option key={sound.sound} value={sound.sound}>
-                      {sound.label}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="Metronome">
-                  {ALL_SOUNDS.filter(s => s.category === 'metronome').map(sound => (
-                    <option key={sound.sound} value={sound.sound}>
-                      {sound.label}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="Bass">
-                  {ALL_SOUNDS.filter(s => s.category === 'bass').map(sound => (
-                    <option key={sound.sound} value={sound.sound}>
-                      {sound.label}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
-            </div>
-          </div>
-        </div>
-      )}
 
       {config.inputMethod === 'audio' && (
         <div className="config-section mic-settings">

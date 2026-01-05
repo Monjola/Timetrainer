@@ -1,0 +1,224 @@
+.yardstick-container {
+    background: var(--bg-secondary, #1a1a1a);
+    padding: var(--spacing-lg, 24px);
+    border-radius: var(--radius-lg, 12px);
+    border: 1px solid var(--border-color, #333);
+    margin-bottom: var(--spacing-lg, 24px);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.yardstick {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    height: 100px;
+    border-bottom: 4px solid var(--text-primary, #fff);
+    padding: 0 10px;
+    margin-top: 40px;
+    margin-bottom: 30px;
+    position: relative;
+}
+
+.yardstick-tick-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+}
+
+.tick-label {
+    position: absolute;
+    top: -45px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    color: var(--text-primary, #fff);
+    font-size: 1.2rem;
+}
+
+.subdivision .tick-label {
+    top: -30px;
+    font-size: 0.9rem;
+    color: var(--text-secondary, #aaa);
+}
+
+.yardstick-tick {
+    width: 12px;
+    background: var(--text-secondary, #666);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+    border-radius: 2px 2px 0 0;
+}
+
+.yardstick-tick:hover:not(:disabled) {
+    background: var(--primary-color, #00d2ff);
+    transform: scaleY(1.1);
+}
+
+.yardstick-tick.selected {
+    background: var(--primary-color, #00d2ff);
+    box-shadow: 0 0 15px rgba(0, 210, 255, 0.5);
+}
+
+.main-beat .yardstick-tick {
+    height: 40px;
+    width: 4px;
+}
+
+.subdivision .yardstick-tick {
+    height: 25px;
+    width: 2px;
+}
+
+.yardstick-tick.static {
+    cursor: default;
+    background: var(--text-primary, #fff);
+}
+
+.yardstick-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    border-top: 1px solid var(--border-color, #333);
+    padding-top: var(--spacing-md, 16px);
+}
+
+.yardstick-preview-btn {
+    background: var(--primary-color, #00d2ff);
+    color: #000;
+    border: none;
+    padding: 10px 20px;
+    border-radius: var(--radius-md, 8px);
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.yardstick-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.preview-mode-selector {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.selector-label {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+.mode-buttons {
+    display: flex;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 2px;
+}
+
+.mode-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.mode-btn:hover:not(.active) {
+    color: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.mode-btn.active {
+    background: var(--primary-color, #00d2ff);
+    color: #000;
+    box-shadow: 0 2px 8px rgba(0, 210, 255, 0.3);
+}
+
+.tap-sound-selector-compact {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.tap-sound-selector-compact select {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    color: inherit;
+    padding: 2px 4px;
+    font-family: inherit;
+    font-size: inherit;
+    outline: none;
+    cursor: pointer;
+}
+
+.tap-sound-selector-compact select:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.tap-sound-selector-compact select:focus {
+    border-color: var(--primary-color);
+}
+
+.yardstick-preview-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 210, 255, 0.4);
+}
+
+.yardstick-preview-btn.playing {
+    background: #ff4d4d;
+}
+
+.action-divider {
+    width: 1px;
+    height: 24px;
+    background: var(--border-color, #333);
+    margin: 0 8px;
+}
+
+.yardstick-preset {
+    background: var(--bg-tertiary, #2a2a2a);
+    border: 1px solid var(--border-color, #444);
+    color: var(--text-primary, #fff);
+    padding: 8px 16px;
+    border-radius: var(--radius-md, 8px);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.yardstick-preset:hover:not(:disabled) {
+    background: var(--bg-hover, #333);
+    border-color: var(--primary-color, #00d2ff);
+}
+
+.yardstick-preset.clear {
+    color: #ff4d4d;
+}
+
+.yardstick-preset.clear:hover:not(:disabled) {
+    background: rgba(255, 77, 77, 0.1);
+    border-color: #ff4d4d;
+}
