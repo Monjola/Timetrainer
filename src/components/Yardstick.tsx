@@ -204,33 +204,87 @@ export function Yardstick({
                     {isPlayingTargets ? '⏹ Stop' : '▶ Preview Targets'}
                 </button>
                 <div className="action-divider" />
-                <button
-                    className="yardstick-preset"
-                    onClick={() => onChange([0, 4, 8, 12])}
-                    disabled={disabled}
-                >
-                    Quarter Notes
-                </button>
+
+                <div className="quick-select-group">
+                    <button
+                        className="yardstick-preset"
+                        onClick={() => onChange([0, 4, 8, 12])}
+                        disabled={disabled}
+                    >
+                        1
+                    </button>
+                    <button
+                        className="yardstick-preset"
+                        onClick={() => onChange([1, 5, 9, 13])}
+                        disabled={disabled}
+                    >
+                        e
+                    </button>
+                    <button
+                        className="yardstick-preset"
+                        onClick={() => onChange([2, 6, 10, 14])}
+                        disabled={disabled}
+                    >
+                        &
+                    </button>
+                    <button
+                        className="yardstick-preset"
+                        onClick={() => onChange([3, 7, 11, 15])}
+                        disabled={disabled}
+                    >
+                        ah
+                    </button>
+                </div>
+
+                <div className="action-divider" />
+
+                <div className="shift-group">
+                    <button
+                        className="yardstick-preset shift-btn"
+                        onClick={() => {
+                            const shifted = targetSubdivisions.map(i => (i - 1 + totalSubdivisions) % totalSubdivisions);
+                            onChange([...new Set(shifted)].sort((a, b) => a - b));
+                        }}
+                        disabled={disabled || targetSubdivisions.length === 0}
+                        title="Shift left"
+                    >
+                        ←
+                    </button>
+                    <button
+                        className="yardstick-preset shift-btn"
+                        onClick={() => {
+                            const shifted = targetSubdivisions.map(i => (i + 1) % totalSubdivisions);
+                            onChange([...new Set(shifted)].sort((a, b) => a - b));
+                        }}
+                        disabled={disabled || targetSubdivisions.length === 0}
+                        title="Shift right"
+                    >
+                        →
+                    </button>
+                </div>
+
+                <div className="action-divider" />
+
                 <button
                     className="yardstick-preset"
                     onClick={() => onChange([0, 2, 4, 6, 8, 10, 12, 14])}
                     disabled={disabled}
                 >
-                    8th Notes
+                    8th
                 </button>
                 <button
                     className="yardstick-preset"
                     onClick={() => onChange(Array.from({ length: 16 }, (_, i) => i))}
                     disabled={disabled}
                 >
-                    16th Notes
+                    16th
                 </button>
                 <button
                     className="yardstick-preset clear"
                     onClick={() => onChange([])}
                     disabled={disabled}
                 >
-                    Clear All
+                    Clear
                 </button>
             </div>
         </div>
