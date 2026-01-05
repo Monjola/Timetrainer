@@ -112,11 +112,10 @@ export class PlaybackEngine {
 
         // 2. Generate User Input Events
         session.offsets.forEach(offset => {
-            // Calculate absolute time relative to session start using the grid + offset
-            // We use the recorded beatIndex and subdivisionIndex as the 'perfect' reference point
-            const beatReferenceTime = offset.beatIndex * beatDuration;
-            const subdivisionReferenceTime = offset.subdivisionIndex * subdivisionDuration;
-            const inputTime = beatReferenceTime + subdivisionReferenceTime + (offset.offsetMs / 1000);
+            // Calculate absolute time relative to session start using the recorded timestamp
+            // This is the most faithful recreation of the performance as it bypasses
+            // any intermediary mapping logic and uses the raw AudioContext time difference.
+            const inputTime = offset.timestamp - session.startTime;
 
             if (tapSound !== 'none') {
                 this.inputEvents.push({

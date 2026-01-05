@@ -71,12 +71,14 @@ export class SessionManager {
       onCountIn: (current, total) => {
         this.callbacks?.onCountIn(current, total);
       },
-      onBeat: (beatIndex) => {
+      onBeat: (beatIndex, _scheduledTime, expectedInputTime) => {
         // First beat after count-in - transition to running state
         if (this.isInCountIn) {
           this.isInCountIn = false;
           this.setState('running');
-          this.startTime = metronomeEngine.getAudioContext()!.currentTime;
+          // Important:Anchor startTime to the expected input time of the first beat
+          // to ensure absolute timestamps of taps can be aligned with the metronome grid in playback.
+          this.startTime = expectedInputTime;
         }
         this.handleBeat(beatIndex);
       },
