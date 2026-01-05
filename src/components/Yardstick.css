@@ -29,47 +29,68 @@
 
 .tick-label {
     position: absolute;
-    top: -45px;
+    top: -50px;
     font-family: 'Inter', sans-serif;
     font-weight: 600;
     color: var(--text-primary, #fff);
-    font-size: 1.2rem;
+    font-size: 1.1rem;
+    transition: all 0.2s;
+    pointer-events: none;
 }
 
-.subdivision .tick-label {
+.eighth .tick-label,
+.sixteenth .tick-label {
     top: -30px;
-    font-size: 0.9rem;
-    color: var(--text-secondary, #aaa);
+    font-size: 0.85rem;
+    color: var(--text-secondary, #888);
 }
 
 .yardstick-tick {
-    width: 12px;
-    background: var(--text-secondary, #666);
+    width: 6px;
+    background: rgba(255, 255, 255, 0.2);
     border: none;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     padding: 0;
-    border-radius: 2px 2px 0 0;
+    border-radius: 3px 3px 0 0;
+    position: relative;
 }
 
-.yardstick-tick:hover:not(:disabled) {
+.yardstick-tick::after {
+    content: '';
+    position: absolute;
+    top: -20px;
+    bottom: -20px;
+    left: -5px;
+    right: -5px;
+    z-index: 1;
+}
+
+.yardstick-tick:hover:not(:disabled):not(.static) {
     background: var(--primary-color, #00d2ff);
     transform: scaleY(1.1);
 }
 
-.yardstick-tick.selected {
-    background: var(--primary-color, #00d2ff);
-    box-shadow: 0 0 15px rgba(0, 210, 255, 0.5);
-}
-
-.main-beat .yardstick-tick {
-    height: 40px;
+.beat .yardstick-tick {
+    height: 60px;
     width: 4px;
+    background: rgba(255, 255, 255, 0.4);
 }
 
-.subdivision .yardstick-tick {
-    height: 25px;
+.eighth .yardstick-tick {
+    height: 30px;
     width: 2px;
+}
+
+.sixteenth .yardstick-tick {
+    height: 15px;
+    width: 1.5px;
+}
+
+.yardstick-tick.selected {
+    background: var(--primary-color, #00d2ff) !important;
+    box-shadow: 0 0 15px rgba(0, 210, 255, 0.4);
+    opacity: 1;
 }
 
 .yardstick-tick.static {

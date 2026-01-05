@@ -174,10 +174,13 @@ export function Yardstick({
                     const label = getLabel(i);
                     const selected = isSelected(i);
 
+                    // Determine rhythmic type for visual hierarchy
+                    const rhythmType = sub === 0 ? 'beat' : (sub === 2 ? 'eighth' : 'sixteenth');
+
                     return (
                         <div
                             key={i}
-                            className={`yardstick-tick-wrapper ${sub === 0 ? 'main-beat' : 'subdivision'}`}
+                            className={`yardstick-tick-wrapper ${rhythmType}`}
                         >
                             <div className="tick-label">{label}</div>
                             <button
@@ -190,7 +193,7 @@ export function Yardstick({
                     );
                 })}
                 {/* The concluding (1) */}
-                <div className="yardstick-tick-wrapper main-beat final-beat">
+                <div className="yardstick-tick-wrapper beat final-beat">
                     <div className="tick-label">(1)</div>
                     <div className="yardstick-tick static" />
                 </div>
